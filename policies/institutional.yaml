@@ -1,0 +1,154 @@
+# Mizan policy -- "institutional-full": every optional section of API-SURFACE Addendum 1 section B.3
+# populated, so the document shows what the full DSL looks like and what the engine reads from it.
+#
+# It is the document form of tests.fixtures.make_institutional_policy() and hashes identically to it.
+#
+# Every section here is optional. A section left out disables its checks by construction (there is
+# nothing to enforce), which is why the sections are the unit of enablement: `path: null` is not the
+# same as a path policy whose limits are permissive, and the contract keeps them distinguishable.
+#
+# These numbers are governance-framework defaults for a demo tenant, not portfolio recommendations.
+
+policy_id: institutional-full
+policy_version: "2.0.0"
+tenant_id: tenant-a
+
+order:
+  max_notional: 250000
+  max_quantity: 500
+  max_legs: 4
+
+portfolio:
+  max_single_symbol_pct: 0.1
+  max_sector_concentration_pct: 0.3
+  max_drawdown_pct: 0.15
+  max_buying_power_utilization: 0.6
+
+options:
+  max_portfolio_delta: 2000
+  max_portfolio_gamma: 250
+  max_portfolio_vega: 1500
+  min_days_to_expiry: 5
+  max_days_to_expiry: 60
+  # Short gamma and short vega are capped separately and more tightly than the long side: the loss
+  # from being short convexity is unbounded, the gain from being long it is not (R-OPT-1).
+  max_short_gamma: 100
+  max_long_gamma: 250
+  max_short_vega: 500
+  max_long_vega: 1500
+  undefined_risk_requires_approval: true
+  assignment_risk_check: true
+  pin_risk_buffer_pct: 0.01
+
+restricted:
+  symbols: ["GME", "AMC"]
+  strategies: ["custom"]
+
+checks:
+  capital_threshold: {enabled: true, severity: blocking}
+  position_limit: {enabled: true, severity: blocking}
+  concentration_limit: {enabled: true, severity: warning}
+  duplicate_order: {enabled: true, severity: blocking, window_seconds: 60}
+  erroneous_order:
+    enabled: true
+    severity: blocking
+    price_deviation_threshold: 0.20
+    quantity_deviation_threshold: 5.0
+  # Sprint-3 checks: the sections below configure them, but the engine does not evaluate them yet, so
+  # they stay off. mizan.policy.validate_policy refuses this document if any of them is switched on
+  # while mizan.risk.IMPLEMENTED_CHECKS does not carry it (CHECK_NOT_IMPLEMENTED).
+  crowding: {enabled: false, severity: blocking}
+  assignment_risk: {enabled: false, severity: blocking}
+  pin_risk: {enabled: false, severity: blocking}
+  stress_scenarios: {enabled: false, severity: blocking}
+  absorbing_barrier: {enabled: false, severity: blocking}
+  factor_exposure: {enabled: false, severity: blocking}
+  book_liquidation_time: {enabled: false, severity: blocking}
+
+advisory:
+  enabled: true
+  profile: institutional_advisory
+  authority_ceiling: reduce_or_reject
+
+authorization:
+  ttl_seconds: 10
+
+fail_closed:
+  on_missing_market_data: true
+  on_missing_portfolio_state: true
+  on_engine_degraded: true
+  on_advisory_unavailable: true
+
+# R-TRADE / R-KELLY: what one trade may risk, and how much of a claimed confidence is believed.
+trade:
+  max_risk_per_trade_pct: 0.01
+  min_reward_risk: 2
+  require_invalidation: true
+  confidence_haircut: 0.25
+  kelly_fraction_cap: 0.25
+
+# R-ERG: size scales DOWN with drawdown, and a losing streak escalates to a human.
+path:
+  size_scaling_by_drawdown:
+    - {drawdown_pct: 0.05, size_multiplier: 1}
+    - {drawdown_pct: 0.10, size_multiplier: 0.5}
+    - {drawdown_pct: 0.15, size_multiplier: 0.25}
+  max_consecutive_losses_before_review: 5
+  max_days_under_water: 30
+
+# R-AGG: the book, not the agent, is the unit of exposure.
+aggregate:
+  max_portfolio_exposure_pct: 0.6
+  max_correlated_intent_agents: 3
+  correlated_intent_window_seconds: 300
+  max_exposure_per_model_provider_pct: 0.4
+  max_exposure_per_signal_source_pct: 0.4
+  crowding_score_threshold: 0.8
+  max_days_to_liquidate_book: 3
+
+agent_budgets:
+  tradingagents-trader-01:
+    max_daily_notional: 50000
+    max_daily_orders: 20
+    max_open_positions: 10
+    allowed_symbols: ["AAPL", "MSFT", "SPY"]
+    active_hours_utc: ["13:30", "20:00"]
+
+# R-GRAD: a ladder, not a binary switch. Escalation is automatic; de-escalation needs a human.
+response_ladder:
+  levels:
+    - {level: 1, trigger: {daily_loss_pct: 0.01}, size_multiplier: 0.75, new_risk_allowed: true}
+    - {level: 2, trigger: {daily_loss_pct: 0.02}, size_multiplier: 0.5, new_risk_allowed: true}
+    - {level: 3, trigger: {daily_loss_pct: 0.03, drawdown_pct: 0.08}, size_multiplier: 0.25, new_risk_allowed: true}
+    - {level: 4, trigger: {drawdown_pct: 0.10}, size_multiplier: 0, new_risk_allowed: false}
+    - {level: 5, trigger: {drawdown_pct: 0.15}, size_multiplier: 0, new_risk_allowed: false}
+  de_escalation_requires_human: true
+
+liquidity:
+  max_pct_of_adv: 0.01
+  max_option_spread_pct: 0.1
+  min_option_open_interest: 100
+  max_estimated_impact_bps: 25
+
+time:
+  earnings_blackout_days_before: 2
+  earnings_blackout_days_after: 1
+  macro_event_blackout_minutes: 30
+  no_trade_first_minutes: 15
+  no_trade_last_minutes: 10
+  max_overnight_exposure_pct: 0.5
+
+tail:
+  absorbing_barrier_equity_floor: 50000
+  stress_scenarios: ["2008_gfc", "2020_covid_crash", "rates_shock_200bp"]
+  max_loss_under_worst_scenario_pct: 0.1
+  expected_shortfall_99_limit: 15000
+
+factor:
+  model_version: factor-model-v1
+  max_beta: 1.2
+  max_sector_exposure_pct: 0.3
+  min_effective_independent_bets: 5
+  max_factor_exposure:
+    momentum: 0.5
+    value: 0.5

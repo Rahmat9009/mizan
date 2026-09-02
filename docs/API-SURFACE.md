@@ -314,7 +314,8 @@ Pure: no I/O, no clock, no LLM, no float, no `reasoning`. Behavioural rules:
 govern(proposal: TradeProposal, evaluation: RiskEvaluation, policy: Policy, advisory: AdvisoryOpinion | None, *, context: RiskContext) -> GovernorDecision
 ```
 - Evaluation REJECT → REJECT regardless of advisory; add `HARD_REJECTION_UPHELD`.
-- Advisory `None` or `available=False`: if `policy.fail_closed.on_advisory_unavailable` → REJECT `ADVISORY_UNAVAILABLE`; else deterministic verdict stands (add `ADVISORY_UNAVAILABLE` as info when `policy.advisory.enabled`).
+- Advisory `None` or `available=False`: if `policy.fail_closed.on_advisory_unavailable` → REJECT `ADVISORY_UNAVAILABLE`; else the deterministic verdict stands and **no reason code is added**. Unavailability is recorded on `GovernorDecision.llm_advisory`, not in `reason_codes`.
+  *(Corrected 2026-09-03, ESC-2. The original text said to add `ADVISORY_UNAVAILABLE` as an informational code whenever `policy.advisory.enabled`. That is unimplementable: `verdict_hash` covers `reason_codes`, so an absent advisory would hash differently from a CONCUR advisory that reached the same outcome, breaking invariant 18(c) and invariant 13. The general rule this taught: **reason codes describe the OUTCOME, never the circumstances that produced it.** Circumstances belong on the record's advisory block, which is not hashed into the verdict.)*
 - Advisory REJECT → REJECT `ADVISORY_REJECT`. Advisory REDUCE with qty < deterministic recommendation → authorized = qty (`ADVISORY_REDUCE`); qty ≥ recommendation → authorized = recommendation and add `ADVISORY_CLAMPED` when qty > recommendation. CONCUR → recommendation.
 - `authorized.total_quantity <= evaluation.recommended_quantity` always. `decision_timestamp = context.evaluated_at`. `decision_id = uuid7()`.
 - Never reads `proposal.reasoning` or `advisory.reasoning` for control flow.

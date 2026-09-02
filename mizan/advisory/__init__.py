@@ -12,15 +12,23 @@ must never mean the risk system is unavailable (Hard Rule E8).
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+import threading
+from decimal import Decimal
+from typing import Any, Protocol, runtime_checkable
 
+from mizan.advisory.offline import OfflineAdvisoryProvider
+from mizan.advisory.openai_compatible import OpenAICompatibleAdvisoryProvider
 from mizan.contracts import (
     AdvisoryOpinion,
     Policy,
     RiskContext,
     RiskEvaluation,
     TradeProposal,
+    dec,
+    dstr,
 )
+from mizan.contracts.trade_proposal import MAX_REASONING_CHARS
+from mizan.contracts.types import NonEmptyStr
 
 __all__ = [
     "AdvisoryProvider",
@@ -28,6 +36,10 @@ __all__ = [
     "OpenAICompatibleAdvisoryProvider",
     "get_advisory",
 ]
+
+_ZERO = Decimal(0)
+_MAX_PROFILE_CHARS = 256
+_UNAVAILABLE_PROFILE = "unavailable"
 
 
 @runtime_checkable
@@ -58,54 +70,169 @@ def get_advisory(
     ``available=False``. A quantity above ``evaluation.recommended_quantity`` is clamped before the
     opinion leaves this function, so nothing downstream has to trust the provider.
     """
-    raise NotImplementedError("L2 implements this in Sprint 2")
+    profile = _UNAVAILABLE_PROFILE
+    try:
+        profile = _profile_of(provider, policy)
+        if provider is None:
+            return _unavailable(profile, invoked=False, detail="no advisory provider is configured")
+        if timeout_seconds <= 0:
+            return _unavailable(profile, invoked=False, detail="ADVISORY_SKIPPED: no time budget")
+        result, failure = _call(provider, proposal, evaluation, context, policy, timeout_seconds)
+        if failure is not None:
+            return _unavailable(profile, invoked=True, detail=failure)
+        try:
+            opinion = _as_opinion(result)
+        except Exception as exc:
+            return _unavailable(profile, invoked=True, detail=_detail("ADVISORY_INVALID_OUTPUT", exc))
+        return _clamped(opinion, dec(evaluation.recommended_quantity), profile)
+    except Exception as exc:  # last line of defence: this function does not raise, ever
+        return _unavailable(profile, invoked=True, detail=_detail("ADVISORY_INVALID_OUTPUT", exc))
 
 
-class OfflineAdvisoryProvider:
-    """Deterministic, network-free provider for tests, demos and air-gapped deployments."""
-
-    profile = "offline"
-
-    def __init__(self, *, opinion: AdvisoryOpinion | None = None) -> None:
-        self.opinion = opinion
-
-    def advise(
-        self,
-        proposal: TradeProposal,
-        evaluation: RiskEvaluation,
-        context: RiskContext,
-        policy: Policy,
-    ) -> AdvisoryOpinion:
-        raise NotImplementedError("L2 implements this in Sprint 2")
+# ----------------------------------------------------------------------------------------------------------
+# Calling an untrusted provider
+# ----------------------------------------------------------------------------------------------------------
 
 
-class OpenAICompatibleAdvisoryProvider:
-    """JSON-mode provider for any OpenAI-compatible endpoint (Featherless and friends).
+def _call(
+    provider: AdvisoryProvider,
+    proposal: TradeProposal,
+    evaluation: RiskEvaluation,
+    context: RiskContext,
+    policy: Policy,
+    timeout_seconds: int,
+) -> tuple[Any, str | None]:
+    """Run ``provider.advise`` under a hard deadline. Returns ``(result, failure_detail)``.
 
-    The client is constructed lazily so that importing this module never opens a socket and never
-    requires a key — the deterministic engine must import cleanly on a machine with no provider at all.
+    The call runs on a daemon worker thread and the caller waits at most ``timeout_seconds`` for it. A
+    provider blocked in a socket read cannot be cancelled from outside in CPython — there is no safe way
+    to interrupt an arbitrary third-party call — so the deadline is enforced by *abandoning* the worker
+    rather than by stopping it: the thread is a daemon (it cannot hold the process open), whatever it
+    eventually returns is discarded, and the governance decision proceeds without it. That is the whole
+    point of Hard Rule E8: a hung LLM must cost the risk system nothing but the wait.
     """
+    outcome: dict[str, Any] = {}
 
-    def __init__(
-        self,
-        *,
-        profile: str = "standard_advisory",
-        model: str | None = None,
-        base_url: str | None = None,
-        api_key: str | None = None,
-        timeout_seconds: int = 10,
-    ) -> None:
-        self.profile = profile
-        self.model = model
-        self.base_url = base_url
-        self._api_key = api_key
-        self.timeout_seconds = timeout_seconds
+    def run() -> None:
+        try:
+            outcome["result"] = provider.advise(proposal, evaluation, context, policy)
+        except BaseException as exc:  # a worker that dies silently would look like a timeout
+            outcome["error"] = exc
 
-    def advise(
-        self,
-        proposal: TradeProposal,
-        evaluation: RiskEvaluation,
-        context: RiskContext,
-        policy: Policy,
-    ) -> AdvisoryOpinion:
-        raise NotImplementedError("L2 implements this in Sprint 2")
+    worker = threading.Thread(target=run, name="mizan-advisory", daemon=True)
+    worker.start()
+    worker.join(timeout_seconds)
+    if worker.is_alive():
+        return (None, f"ADVISORY_UNAVAILABLE: provider exceeded {timeout_seconds}s")
+    error = outcome.get("error")
+    if error is not None:
+        return (None, _detail("ADVISORY_UNAVAILABLE", error))
+    return (outcome.get("result"), None)
+
+
+def _as_opinion(result: Any) -> AdvisoryOpinion:
+    """Accept only what the contract can express: an ``AdvisoryOpinion`` or a mapping that validates as one.
+
+    A duck-typed object with the right attribute names is *not* accepted. That is deliberate: the only
+    thing standing between a provider's imagination and the governor is this type, and an object that
+    merely resembles it (``recommendation = "APPROVE_MORE"``) resembles it precisely where it matters.
+    """
+    if isinstance(result, AdvisoryOpinion):
+        return result
+    if isinstance(result, dict):
+        return AdvisoryOpinion.model_validate(result)
+    raise TypeError(f"advisory provider returned {type(result).__name__}, not an AdvisoryOpinion")
+
+
+def _clamped(opinion: AdvisoryOpinion, cap: Decimal, profile: str) -> AdvisoryOpinion:
+    """Normalise a provider opinion so that nothing downstream has to trust it.
+
+    ``invoked`` is set from what actually happened rather than from what the provider claimed, and a
+    recommended quantity above the deterministic cap is clamped to the cap here — the governor clamps
+    again, because one layer of defence is not a defence.
+    """
+    if not opinion.available or opinion.recommendation is None:
+        return _unavailable(profile, invoked=True, detail=_text(opinion.reasoning))
+
+    recommendation = opinion.recommendation
+    quantity: str | None = None
+    if recommendation == "REDUCE":
+        raw = opinion.recommended_quantity
+        if raw is None:
+            return _unavailable(
+                profile, invoked=True, detail="ADVISORY_INVALID_OUTPUT: REDUCE without a quantity"
+            )
+        parsed = dec(raw)
+        if parsed > cap:
+            parsed = cap
+        if parsed <= _ZERO:
+            recommendation = "REJECT"  # a reduction to nothing is a rejection, and stays downward
+        else:
+            quantity = dstr(parsed)
+
+    return AdvisoryOpinion(
+        profile=_bounded(opinion.profile) or profile,
+        invoked=True,
+        available=True,
+        recommendation=recommendation,
+        recommended_quantity=quantity,
+        reasoning=_text(opinion.reasoning),
+        authority_ceiling="reduce_or_reject",
+        provider_ref=_bounded(opinion.provider_ref),
+        raw_hash=opinion.raw_hash,
+    )
+
+
+# ----------------------------------------------------------------------------------------------------------
+# Unavailable opinions
+# ----------------------------------------------------------------------------------------------------------
+
+
+def _unavailable(profile: str, *, invoked: bool, detail: str) -> AdvisoryOpinion:
+    """The only failure mode this module has: an opinion that carries no recommendation at all."""
+    return AdvisoryOpinion(
+        profile=profile,
+        invoked=invoked,
+        available=False,
+        recommendation=None,
+        recommended_quantity=None,
+        reasoning=_text(detail),
+        authority_ceiling="reduce_or_reject",
+        provider_ref=None,
+        raw_hash=None,
+    )
+
+
+def _detail(code: str, exc: BaseException) -> str:
+    """Record the failure *class*, never the provider's own words.
+
+    An exception message is provider-controlled text; copying it into an audit field would give an
+    adversarial endpoint a channel into the decision record. The type name is enough to debug with.
+    """
+    return f"{code}: {type(exc).__name__}"
+
+
+def _text(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    return value[:MAX_REASONING_CHARS]
+
+
+def _bounded(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    trimmed = value.strip()[:_MAX_PROFILE_CHARS]
+    return trimmed or None
+
+
+def _profile_of(provider: AdvisoryProvider | None, policy: Policy) -> str:
+    """The provider's own profile label when it has a usable one, else the policy's configured profile."""
+    try:
+        declared = getattr(provider, "profile", None)
+    except Exception:
+        declared = None
+    bounded = _bounded(declared)
+    if bounded is not None:
+        return bounded
+    configured: NonEmptyStr = policy.advisory.profile
+    return configured

@@ -60,7 +60,9 @@ def test_hash_chain_verifies(tmp_path):
         records = _append_five(tenant_ledger)
         assert [r.sequence for r in records] == [1, 2, 3, 4, 5]
         assert records[0].audit_prev_hash == ZERO_HASH
-        for previous, current in zip(records, records[1:]):
+        # strict=False is deliberate: this is a pairwise walk, so the two sequences differ in
+        # length by exactly one. The chain's length is asserted separately, above.
+        for previous, current in zip(records, records[1:], strict=False):
             assert current.audit_prev_hash == previous.audit_hash
             assert current.audit_hash != previous.audit_hash
         for record in records:

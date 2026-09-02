@@ -23,7 +23,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.ai_risk import MockAIRiskProvider
@@ -38,7 +37,6 @@ from app.models import (
     PortfolioPosition,
     PortfolioSnapshot,
     RiskReport,
-    Side,
     TradeProposal,
 )
 from app.persistence import Database

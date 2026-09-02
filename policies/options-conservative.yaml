@@ -1,0 +1,66 @@
+# Mizan policy -- Master Plan section 5.4 ("options-conservative"), rendered as a valid policy document.
+#
+# Decimal values are written the way a human writes them, unquoted. The loader in mizan.policy never
+# constructs a binary fractional value, so "0.15" below reaches the contract as the string 0.15 and is
+# hashed exactly as written (Hard Rule A6). Quoting them is also fine; the result is identical.
+#
+# policy_hash is omitted: mizan.policy.load_policy computes it from the canonical content. Include it
+# and the loader verifies it instead, refusing the document on a mismatch (POLICY_HASH_MISMATCH).
+#
+# These numbers are governance-framework defaults for a demo tenant, not portfolio recommendations.
+
+policy_id: options-conservative
+policy_version: "1.4.0"
+tenant_id: tenant-a
+
+order:
+  max_notional: 10000.00
+  max_quantity: 20
+  max_legs: 4
+
+portfolio:
+  max_single_symbol_pct: 0.15
+  max_sector_concentration_pct: 0.25
+  max_drawdown_pct: 0.20
+  max_buying_power_utilization: 0.80
+
+options:
+  max_portfolio_delta: 500
+  max_portfolio_gamma: 100
+  max_portfolio_vega: 300
+  min_days_to_expiry: 7
+  max_days_to_expiry: 45
+
+restricted:
+  symbols: ["GME", "AMC"]
+  strategies: []
+
+checks:
+  capital_threshold: {enabled: true, severity: blocking}
+  position_limit: {enabled: true, severity: blocking}
+  concentration_limit: {enabled: true, severity: warning}
+  duplicate_order: {enabled: true, severity: blocking, window_seconds: 60}
+  erroneous_order:
+    enabled: true
+    severity: blocking
+    price_deviation_threshold: 0.20
+    quantity_deviation_threshold: 5.0
+  # Sprint-3 checks. The options section above would otherwise imply them, and a policy that names a
+  # control the engine does not evaluate is refused at load time (CHECK_NOT_IMPLEMENTED) rather than
+  # silently passing. Turning them on is a one-line change once the engine implements them.
+  assignment_risk: {enabled: false, severity: blocking}
+  pin_risk: {enabled: false, severity: blocking}
+
+advisory:
+  enabled: true
+  profile: standard_advisory        # a profile, never a vendor model string
+  authority_ceiling: reduce_or_reject
+
+authorization:
+  ttl_seconds: 15
+
+fail_closed:
+  on_missing_market_data: true
+  on_missing_portfolio_state: true
+  on_engine_degraded: true
+  on_advisory_unavailable: false    # the advisory is optional; enforcement is not

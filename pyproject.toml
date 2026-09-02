@@ -99,6 +99,20 @@ extend-exclude = [
   "ui",
   "demo_*.py",
   "probe_featherless.py",
+  # The legacy test suite belongs to app/ and is pinned as a salvage reference. It must keep passing,
+  # but it is not code this project styles.
+  "tests/test_alpaca_portfolio.py",
+  "tests/test_api.py",
+  "tests/test_claude_risk.py",
+  "tests/test_execution.py",
+  "tests/test_featherless_risk.py",
+  "tests/test_migrations.py",
+  "tests/test_options_risk.py",
+  "tests/test_options_structure.py",
+  "tests/test_persistence.py",
+  "tests/test_phase2.py",
+  "tests/test_pipeline.py",
+  "tests/test_reconciliation.py",
 ]
 
 [tool.ruff.lint]
@@ -110,6 +124,24 @@ known-first-party = ["mizan", "tests"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["B011"]  # assert False is fine in tests
+
+# FROZEN PATHS — style rules only, correctness rules still enforced.
+#
+# contracts/ and tests/invariants/ were frozen at the Sprint 1 checkpoint, and tests/fixtures and
+# mizan/contracts are the L0 code they are built on. Reformatting 215 long lines and re-sorting imports
+# across reviewed, frozen files produces exactly the kind of large mechanical diff in which a real change
+# hides — which is the risk the freeze exists to remove.
+#
+# So the cosmetic rules are switched off HERE and only here: E501 (line length), I001 (import order) and
+# the UP modernisation rules. Everything that catches a defect — F (undefined and unused names) and B
+# (likely bugs) — stays enforced in these paths, and every other path keeps the full rule set.
+#
+# Revisit when the freeze lifts at the next schema version; this is a consequence of the freeze, not a
+# lowering of the project's standard.
+"mizan/contracts/*.py" = ["E501", "I001", "UP017", "UP035", "UP037", "UP047"]
+"tests/invariants/*.py" = ["E501", "I001", "UP017", "UP035", "UP037", "UP047"]
+"tests/fixtures/*.py" = ["E501", "I001", "UP017", "UP035", "UP037", "UP047"]
+"tests/security/*.py" = ["E501", "I001", "UP017", "UP035", "UP037", "UP047"]
 
 # ---------------------------------------------------------------------------
 # mypy (mizan/ only; legacy app/ is not type-checked)

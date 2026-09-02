@@ -57,7 +57,9 @@ def hooks_dir() -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--force", action="store_true", help="replace an existing hook that is not ours (backup kept)")
+    parser.add_argument(
+        "--force", action="store_true", help="replace an existing hook that is not ours (backup kept)"
+    )
     parser.add_argument("--uninstall", action="store_true", help="remove the hook if it is ours")
     args = parser.parse_args(argv)
 

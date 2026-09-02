@@ -651,7 +651,9 @@ def scan_history(cfg: Config) -> list[Finding]:
                 key = (commit, path)
                 if key not in path_flagged:
                     path_flagged.add(key)
-                    findings.append(Finding(path, 0, "sensitive-file", "file name alone is a finding", commit))
+                    findings.append(
+                        Finding(path, 0, "sensitive-file", "file name alone is a finding", commit)
+                    )
             continue
         if path is None:
             continue
@@ -725,8 +727,16 @@ def self_test_cases() -> tuple[list[tuple[str, str, str]], list[str]]:
         ("private-key-block", "-----BEGIN " + "RSA PRIVATE KEY-----", "RSA PRIVATE KEY"),
         ("private-key-block", "-----BEGIN " + "OPENSSH PRIVATE KEY-----", "OPENSSH PRIVATE KEY"),
         ("jwt", f"Authorization: Bearer {jwt}", jwt),
-        ("database-url-with-password", f"DATABASE_URL=postgresql://mizan:{db_pw}@db.internal:5432/mizan", db_pw),  # secret-scan: allow
-        ("database-url-with-password", f"REDIS_URL=redis://default:{db_pw}@cache:6379/0", db_pw),  # secret-scan: allow
+        (
+            "database-url-with-password",
+            f"DATABASE_URL=postgresql://mizan:{db_pw}@db.internal:5432/mizan",  # secret-scan: allow
+            db_pw,
+        ),
+        (
+            "database-url-with-password",
+            f"REDIS_URL=redis://default:{db_pw}@cache:6379/0",  # secret-scan: allow
+            db_pw,
+        ),
         ("high-entropy-assignment", f'api_key = "{generic}"', generic),
         ("high-entropy-assignment", f'  "client_secret": "{generic}",', generic),
         ("high-entropy-assignment", f"password: {generic}", generic),
@@ -819,15 +829,21 @@ def _build_parser() -> argparse.ArgumentParser:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--staged", action="store_true", help="scan content staged for commit")
     mode.add_argument("--all", action="store_true", help="scan tracked + untracked (non-ignored) files")
-    mode.add_argument("--history", action="store_true", help="scan every added line in every commit on every branch")
+    mode.add_argument(
+        "--history", action="store_true", help="scan every added line in every commit on every branch"
+    )
     mode.add_argument("--paths", nargs="+", metavar="PATH", help="scan these files/directories")
     mode.add_argument("--self-test", action="store_true", help="run the built-in positive/negative cases")
-    parser.add_argument("--root", type=Path, default=None, help="repository root (default: git toplevel or cwd)")
+    parser.add_argument(
+        "--root", type=Path, default=None, help="repository root (default: git toplevel or cwd)"
+    )
     parser.add_argument(
         "--allowlist", type=Path, default=None, help=f"allow-list file (default: <root>/{ALLOWLIST_FILENAME})"
     )
     parser.add_argument("--no-allowlist", action="store_true", help="ignore the allow-list file")
-    parser.add_argument("-v", "--verbose", action="store_true", help="report skipped and allow-listed files on stderr")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="report skipped and allow-listed files on stderr"
+    )
     return parser
 
 
@@ -838,14 +854,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_self_test()
     if not (args.staged or args.all or args.history or args.paths):
         parser.print_usage(sys.stderr)
-        print("secret_scan.py: one of --staged, --all, --history, --paths or --self-test is required", file=sys.stderr)
+        print(
+            "secret_scan.py: one of --staged, --all, --history, --paths or --self-test is required",
+            file=sys.stderr,
+        )
         return 2
 
     cwd = Path.cwd()
     root = (args.root or find_repo_root(cwd) or cwd).resolve()
     needs_git = args.staged or args.all or args.history
     if needs_git and find_repo_root(root) is None:
-        print(f"secret_scan.py: {root} is not a git repository (required for the requested mode)", file=sys.stderr)
+        print(
+            f"secret_scan.py: {root} is not a git repository (required for the requested mode)",
+            file=sys.stderr,
+        )
         return 2
     cfg = Config(root=root, verbose=args.verbose)
     if not args.no_allowlist:

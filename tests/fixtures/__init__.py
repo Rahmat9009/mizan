@@ -908,6 +908,9 @@ def make_control_event(**overrides: Any) -> ControlEvent:
 
 
 __all__ = [
+    "Quantities",
+    "AuthorizedLegQuantity",
+    "Authorized",
     "AAPL_PRICE",
     "AGENT_ID",
     "FIXED_NOW",

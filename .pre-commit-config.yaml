@@ -23,6 +23,10 @@ repos:
         require_serial: true
       - id: block-env-files
         name: block .env files (only .env.example may be committed)
-        entry: python -c "import sys; bad=[p for p in sys.argv[1:] if p.split('/')[-1]=='.env' or (p.split('/')[-1].startswith('.env.') and not p.endswith(('.example','.sample','.template')))]; print('\n'.join('refusing to commit: '+p for p in bad)); sys.exit(1 if bad else 0)"
+        # Literal block scalar: the one-liner contains ": ", which a plain YAML
+        # scalar may not (it would be read as a mapping). Keep it on one line --
+        # `entry` is shlex-split, not run through a shell.
+        entry: |-
+          python -c "import sys; bad=[p for p in sys.argv[1:] if p.split('/')[-1]=='.env' or (p.split('/')[-1].startswith('.env.') and not p.endswith(('.example','.sample','.template')))]; print('\n'.join('refusing to commit: '+p for p in bad)); sys.exit(1 if bad else 0)"
         language: system
         pass_filenames: true

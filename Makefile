@@ -20,6 +20,11 @@
 PYTHON ?= python
 ARGS   ?=
 PYTEST  = $(PYTHON) -m pytest -p no:cacheprovider -q
+# Run a suite only if its directory exists. tests/integration (L6) and tests/security (L5)
+# arrive in later sprints; until then `pytest <missing dir>` exits 4 and would break `make ci`
+# for a suite nobody has written yet. CI prints the same warning and carries on. No shell
+# built-ins, so this behaves identically under sh, cmd and PowerShell.
+PYTEST_IF = $(PYTHON) -c "import pathlib,subprocess,sys; d=sys.argv[1]; sys.exit(subprocess.call([sys.executable,'-m','pytest','-p','no:cacheprovider','-q',d]) if pathlib.Path(d).is_dir() else print('skipped: '+d+' does not exist yet'))"
 
 .PHONY: install hooks lint typecheck test test-contracts test-invariants test-security test-integration \
 	    test-all secret-scan secret-scan-history verify-chain compose-up compose-down ci
@@ -47,10 +52,10 @@ test-invariants:
 	$(PYTEST) tests/invariants
 
 test-security:
-	$(PYTEST) tests/security
+	$(PYTEST_IF) tests/security
 
 test-integration:
-	$(PYTEST) tests/integration
+	$(PYTEST_IF) tests/integration
 
 test-all:
 	$(PYTEST) tests

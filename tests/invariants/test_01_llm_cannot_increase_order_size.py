@@ -201,9 +201,16 @@ def test_get_advisory_disowns_out_of_contract_increase_objects():
 
 
 @settings(max_examples=40, deadline=None, database=None, derandomize=True)
-@given(advised=st.integers(min_value=0, max_value=10**9))
+@given(advised=st.integers(min_value=1, max_value=10**9))
 def test_authorized_quantity_never_exceeds_deterministic_cap_for_any_advised_quantity(advised: int):
-    """Property: for every advised REDUCE quantity, authorized <= evaluation.recommended_quantity."""
+    """Property: for every advised REDUCE quantity, authorized <= evaluation.recommended_quantity.
+
+    The strategy starts at 1, not 0, because a REDUCE to zero is not a REDUCE — it is a REJECT, and the
+    contract refuses to construct that opinion at all (see the ValidationError cases above). Advising
+    zero is therefore covered by the REJECT path, not here. The property being asserted is unchanged and
+    unweakened: no advised quantity, however large, lifts the authorized quantity above the deterministic
+    cap. See ledger/escalations.md, ESC-1.
+    """
     policy, context, proposal, evaluation = _reduce_setup("4")
     cap = dec(evaluation.recommended_quantity)
     decision = governor.govern(
