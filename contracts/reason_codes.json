@@ -1,0 +1,677 @@
+{
+  "codes": {
+    "ABSORBING_BARRIER_BREACHED": {
+      "category": "TAIL",
+      "check_id": "absorbing_barrier",
+      "default_severity": "blocking",
+      "description": "Equity would fall below the absorbing-barrier floor; no new risk."
+    },
+    "ADVISORY_CLAMPED": {
+      "category": "ADVISORY",
+      "check_id": null,
+      "default_severity": "warning",
+      "description": "The advisory quantity exceeded the deterministic recommendation and was clamped to it."
+    },
+    "ADVISORY_INVALID_OUTPUT": {
+      "category": "ADVISORY",
+      "check_id": null,
+      "default_severity": "info",
+      "description": "The advisory provider returned malformed or out-of-range output; treated as unavailable."
+    },
+    "ADVISORY_REDUCE": {
+      "category": "ADVISORY",
+      "check_id": null,
+      "default_severity": "warning",
+      "description": "The advisory recommended a smaller quantity than the deterministic engine; it was applied."
+    },
+    "ADVISORY_REJECT": {
+      "category": "ADVISORY",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The advisory recommended rejection; it was applied."
+    },
+    "ADVISORY_SKIPPED": {
+      "category": "ADVISORY",
+      "check_id": null,
+      "default_severity": "info",
+      "description": "The advisory was not invoked (disabled by policy or unnecessary after a hard rejection)."
+    },
+    "ADVISORY_UNAVAILABLE": {
+      "category": "ADVISORY",
+      "check_id": null,
+      "default_severity": "info",
+      "description": "The advisory provider was unavailable, timed out or raised; the deterministic verdict stands."
+    },
+    "ADV_PARTICIPATION_EXCEEDED": {
+      "category": "LIQUIDITY",
+      "check_id": "liquidity_adv",
+      "default_severity": "blocking",
+      "description": "The order would exceed the policy share of average daily volume."
+    },
+    "AGENT_DAILY_NOTIONAL_EXCEEDED": {
+      "category": "AGENT",
+      "check_id": "agent_budget",
+      "default_severity": "blocking",
+      "description": "The agent daily notional budget would be exceeded."
+    },
+    "AGENT_DAILY_ORDERS_EXCEEDED": {
+      "category": "AGENT",
+      "check_id": "agent_budget",
+      "default_severity": "blocking",
+      "description": "The agent daily order budget would be exceeded."
+    },
+    "AGENT_OPEN_POSITIONS_EXCEEDED": {
+      "category": "AGENT",
+      "check_id": "agent_budget",
+      "default_severity": "blocking",
+      "description": "The agent open-position budget would be exceeded."
+    },
+    "AGENT_OUTSIDE_ACTIVE_HOURS": {
+      "category": "AGENT",
+      "check_id": "agent_budget",
+      "default_severity": "blocking",
+      "description": "The proposal falls outside the agent active hours."
+    },
+    "AGENT_STATE_MISSING": {
+      "category": "AGENT",
+      "check_id": "agent_budget",
+      "default_severity": "blocking",
+      "description": "An agent budget is configured but the context carries no agent state."
+    },
+    "AGENT_SYMBOL_NOT_ALLOWED": {
+      "category": "AGENT",
+      "check_id": "agent_budget",
+      "default_severity": "blocking",
+      "description": "The symbol is outside the agent allowed list."
+    },
+    "AGGREGATE_EXPOSURE_EXCEEDED": {
+      "category": "AGGREGATE",
+      "check_id": "aggregate_exposure",
+      "default_severity": "blocking",
+      "description": "Post-trade aggregate exposure across agents would exceed the policy ratio of equity."
+    },
+    "AGGREGATE_STATE_MISSING": {
+      "category": "AGGREGATE",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "An aggregate-exposure check is enabled but the context carries no aggregate state."
+    },
+    "ASSET_NOT_TRADABLE": {
+      "category": "EXECUTION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The broker reports the asset as not tradable."
+    },
+    "ASSIGNMENT_RISK": {
+      "category": "OPTIONS",
+      "check_id": "assignment_risk",
+      "default_severity": "blocking",
+      "description": "A short leg carries early-assignment risk under the policy rules."
+    },
+    "AUTHORIZATION_ALREADY_USED": {
+      "category": "AUTHORIZATION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The single-use execution authorization was already consumed."
+    },
+    "AUTHORIZATION_EXPIRED": {
+      "category": "AUTHORIZATION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The execution authorization has expired."
+    },
+    "AUTHORIZATION_INVALID": {
+      "category": "AUTHORIZATION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The authorization hash, idempotency key or structure is invalid."
+    },
+    "AUTHORIZATION_NOT_YET_VALID": {
+      "category": "AUTHORIZATION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The execution authorization is not yet valid."
+    },
+    "AUTHORIZATION_SCOPE_MISMATCH": {
+      "category": "AUTHORIZATION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The order does not match the authorization scope (symbol, legs, quantity or tenant)."
+    },
+    "BOOK_LIQUIDATION_TIME_EXCEEDED": {
+      "category": "LIQUIDITY",
+      "check_id": "book_liquidation_time",
+      "default_severity": "blocking",
+      "description": "Days needed to liquidate the book would exceed the policy maximum."
+    },
+    "BROKER_REJECTED": {
+      "category": "EXECUTION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The broker rejected the order."
+    },
+    "BROKER_UNAVAILABLE": {
+      "category": "EXECUTION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The broker could not be reached; nothing was submitted."
+    },
+    "BUYING_POWER_MISSING": {
+      "category": "PORTFOLIO",
+      "check_id": "buying_power_sufficiency",
+      "default_severity": "blocking",
+      "description": "The portfolio snapshot does not report buying power."
+    },
+    "BUYING_POWER_UTILIZATION_EXCEEDED": {
+      "category": "PORTFOLIO",
+      "check_id": "buying_power_utilization",
+      "default_severity": "blocking",
+      "description": "Post-trade buying-power utilisation would exceed the policy ratio."
+    },
+    "CALENDAR_MISSING": {
+      "category": "TIME",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "A time check is enabled but the context carries no calendar state."
+    },
+    "CAPITAL_THRESHOLD_EXCEEDED": {
+      "category": "ORDER",
+      "check_id": "capital_threshold",
+      "default_severity": "blocking",
+      "description": "Estimated notional exceeds the policy max_notional."
+    },
+    "CHAIN_INTEGRITY_FAILED": {
+      "category": "AUDIT",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The hash chain does not verify."
+    },
+    "CHECK_NOT_IMPLEMENTED": {
+      "category": "POLICY",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The policy enables a check the running engine does not implement; the policy is refused at load time."
+    },
+    "CONCENTRATION_LIMIT_EXCEEDED": {
+      "category": "PORTFOLIO",
+      "check_id": "concentration_limit",
+      "default_severity": "blocking",
+      "description": "Post-trade single-symbol exposure would exceed the policy ratio of equity."
+    },
+    "CONFIDENCE_HAIRCUT_APPLIED": {
+      "category": "ORDER",
+      "check_id": null,
+      "default_severity": "warning",
+      "description": "The agent-supplied confidence was reduced by the policy haircut before sizing."
+    },
+    "CONSECUTIVE_LOSS_REVIEW": {
+      "category": "PATH",
+      "check_id": "consecutive_loss_review",
+      "default_severity": "blocking",
+      "description": "Consecutive losses reached the review threshold; no new risk until reviewed."
+    },
+    "CORRELATED_INTENT_DETECTED": {
+      "category": "AGGREGATE",
+      "check_id": "correlated_intent",
+      "default_severity": "blocking",
+      "description": "Too many agents proposed the same direction on the same symbol within the window."
+    },
+    "CROWDING_THRESHOLD_EXCEEDED": {
+      "category": "AGGREGATE",
+      "check_id": "crowding",
+      "default_severity": "blocking",
+      "description": "The crowding score exceeds the policy threshold."
+    },
+    "DAYS_UNDER_WATER_EXCEEDED": {
+      "category": "PATH",
+      "check_id": "consecutive_loss_review",
+      "default_severity": "blocking",
+      "description": "Days under water exceeded the policy maximum; no new risk until reviewed."
+    },
+    "DRAWDOWN_LIMIT_BREACHED": {
+      "category": "PORTFOLIO",
+      "check_id": "drawdown_limit",
+      "default_severity": "blocking",
+      "description": "Portfolio drawdown from peak equity exceeds the policy limit; no new risk."
+    },
+    "DTE_ABOVE_MAXIMUM": {
+      "category": "OPTIONS",
+      "check_id": "days_to_expiry",
+      "default_severity": "blocking",
+      "description": "Days to expiry is above the policy maximum."
+    },
+    "DTE_BELOW_MINIMUM": {
+      "category": "OPTIONS",
+      "check_id": "days_to_expiry",
+      "default_severity": "blocking",
+      "description": "Days to expiry is below the policy minimum."
+    },
+    "DUPLICATE_ORDER": {
+      "category": "ORDER",
+      "check_id": "duplicate_order",
+      "default_severity": "blocking",
+      "description": "An equivalent order was submitted within the duplicate window."
+    },
+    "EARNINGS_BLACKOUT": {
+      "category": "TIME",
+      "check_id": "time_blackout",
+      "default_severity": "blocking",
+      "description": "The proposal falls inside the earnings blackout window."
+    },
+    "ENGINE_DEGRADED": {
+      "category": "ENGINE",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The engine is degraded; fail closed."
+    },
+    "ENGINE_VERSION_MISMATCH": {
+      "category": "ENGINE",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The engine version differs from the one that produced the record."
+    },
+    "ERRONEOUS_PRICE_DEVIATION": {
+      "category": "ORDER",
+      "check_id": "erroneous_order",
+      "default_severity": "blocking",
+      "description": "The limit price deviates from the market price by more than the policy threshold."
+    },
+    "ERRONEOUS_QUANTITY_DEVIATION": {
+      "category": "ORDER",
+      "check_id": "erroneous_order",
+      "default_severity": "blocking",
+      "description": "The quantity deviates from recent order sizes by more than the policy threshold."
+    },
+    "ESTIMATED_IMPACT_EXCEEDED": {
+      "category": "LIQUIDITY",
+      "check_id": "liquidity_adv",
+      "default_severity": "blocking",
+      "description": "Estimated market impact exceeds the policy maximum."
+    },
+    "EXECUTION_DISABLED": {
+      "category": "EXECUTION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "Execution is disabled by configuration."
+    },
+    "EXPECTED_SHORTFALL_EXCEEDED": {
+      "category": "TAIL",
+      "check_id": "stress_scenarios",
+      "default_severity": "blocking",
+      "description": "Expected shortfall (99%) would exceed the policy limit."
+    },
+    "FACTOR_EXPOSURE_EXCEEDED": {
+      "category": "FACTOR",
+      "check_id": "factor_exposure",
+      "default_severity": "blocking",
+      "description": "Exposure to a factor (or beta) would exceed the policy limit."
+    },
+    "GREEKS_MISSING": {
+      "category": "MARKET_DATA",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "An option check requires greeks that the market snapshot does not carry."
+    },
+    "HARD_REJECTION_UPHELD": {
+      "category": "ENGINE",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The deterministic engine rejected; no advisory can overturn a hard rejection."
+    },
+    "IDEMPOTENT_ORDER_EXISTS": {
+      "category": "EXECUTION",
+      "check_id": null,
+      "default_severity": "info",
+      "description": "An order with this idempotency key already exists at the broker; it was reconciled, not resubmitted."
+    },
+    "INSUFFICIENT_BUYING_POWER": {
+      "category": "PORTFOLIO",
+      "check_id": "buying_power_sufficiency",
+      "default_severity": "blocking",
+      "description": "The proposal notional exceeds available buying power."
+    },
+    "INVALIDATION_MISSING": {
+      "category": "ORDER",
+      "check_id": "invalidation_defined",
+      "default_severity": "blocking",
+      "description": "The policy requires an invalidation level and the proposal has none."
+    },
+    "INVALID_PRICE": {
+      "category": "ORDER",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "A limit price is missing, non-positive or malformed."
+    },
+    "INVALID_QUANTITY": {
+      "category": "ORDER",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "A leg quantity is not a positive whole number of units."
+    },
+    "KILL_SWITCH_ACTIVE": {
+      "category": "EXECUTION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The kill switch was active immediately before the broker mutation."
+    },
+    "LEG_LIMIT_EXCEEDED": {
+      "category": "ORDER",
+      "check_id": "leg_limit",
+      "default_severity": "blocking",
+      "description": "The proposal has more legs than the policy allows."
+    },
+    "LIQUIDITY_DATA_MISSING": {
+      "category": "LIQUIDITY",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "A liquidity check is enabled but the market snapshot lacks ADV, spread or open-interest data."
+    },
+    "LIVE_TRADING_FORBIDDEN": {
+      "category": "EXECUTION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "Only the paper environment exists; a non-paper configuration was refused."
+    },
+    "MACRO_EVENT_BLACKOUT": {
+      "category": "TIME",
+      "check_id": "time_blackout",
+      "default_severity": "blocking",
+      "description": "The proposal falls inside a macro-event blackout window."
+    },
+    "MARKET_CLOSED": {
+      "category": "EXECUTION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The market is closed for this asset."
+    },
+    "MARKET_DATA_MISSING": {
+      "category": "MARKET_DATA",
+      "check_id": "market_data_presence",
+      "default_severity": "blocking",
+      "description": "No market snapshot was available; unknown risk is not safe."
+    },
+    "MARKET_DATA_STALE": {
+      "category": "MARKET_DATA",
+      "check_id": "market_data_presence",
+      "default_severity": "blocking",
+      "description": "The market snapshot is older than the policy tolerates."
+    },
+    "MODEL_PROVIDER_CONCENTRATION_EXCEEDED": {
+      "category": "AGGREGATE",
+      "check_id": "model_provider_concentration",
+      "default_severity": "blocking",
+      "description": "Exposure attributable to one model provider would exceed the policy ratio."
+    },
+    "NAKED_SHORT_NOT_PERMITTED": {
+      "category": "OPTIONS",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "A short option leg has no long leg of the same type covering it."
+    },
+    "OPTIONS_DELTA_LIMIT_EXCEEDED": {
+      "category": "OPTIONS",
+      "check_id": "options_delta_limit",
+      "default_severity": "blocking",
+      "description": "Projected portfolio delta would exceed the policy limit."
+    },
+    "OPTIONS_GAMMA_LIMIT_EXCEEDED": {
+      "category": "OPTIONS",
+      "check_id": "options_gamma_limit",
+      "default_severity": "blocking",
+      "description": "Projected portfolio gamma would exceed the policy limit."
+    },
+    "OPTIONS_SHORT_GAMMA_LIMIT_EXCEEDED": {
+      "category": "OPTIONS",
+      "check_id": "options_short_gamma_limit",
+      "default_severity": "blocking",
+      "description": "Projected short gamma would exceed the asymmetric policy limit."
+    },
+    "OPTIONS_SHORT_VEGA_LIMIT_EXCEEDED": {
+      "category": "OPTIONS",
+      "check_id": "options_short_vega_limit",
+      "default_severity": "blocking",
+      "description": "Projected short vega would exceed the asymmetric policy limit."
+    },
+    "OPTIONS_VEGA_LIMIT_EXCEEDED": {
+      "category": "OPTIONS",
+      "check_id": "options_vega_limit",
+      "default_severity": "blocking",
+      "description": "Projected portfolio vega would exceed the policy limit."
+    },
+    "OPTION_OPEN_INTEREST_TOO_LOW": {
+      "category": "LIQUIDITY",
+      "check_id": "option_liquidity",
+      "default_severity": "blocking",
+      "description": "An option leg open interest is below the policy minimum."
+    },
+    "OPTION_SPREAD_TOO_WIDE": {
+      "category": "LIQUIDITY",
+      "check_id": "option_liquidity",
+      "default_severity": "blocking",
+      "description": "An option leg bid-ask spread exceeds the policy maximum."
+    },
+    "OVERNIGHT_EXPOSURE_EXCEEDED": {
+      "category": "TIME",
+      "check_id": "session_window",
+      "default_severity": "blocking",
+      "description": "Overnight exposure would exceed the policy ratio."
+    },
+    "PATH_STATE_MISSING": {
+      "category": "PATH",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "A path-dependent check is enabled but the context carries no path state."
+    },
+    "PIN_RISK": {
+      "category": "OPTIONS",
+      "check_id": "pin_risk",
+      "default_severity": "warning",
+      "description": "A strike is within the pin-risk buffer of the underlying price near expiry."
+    },
+    "POLICY_HASH_MISMATCH": {
+      "category": "POLICY",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The policy hash in the risk context does not match the policy supplied to the engine."
+    },
+    "POLICY_INVALID": {
+      "category": "POLICY",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The policy failed validation."
+    },
+    "POLICY_NOT_FOUND": {
+      "category": "POLICY",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "No policy with the requested id/version/hash exists for this tenant."
+    },
+    "PORTFOLIO_STATE_MISSING": {
+      "category": "PORTFOLIO",
+      "check_id": "portfolio_state_presence",
+      "default_severity": "blocking",
+      "description": "No portfolio snapshot was available; unknown risk is not safe."
+    },
+    "PORTFOLIO_STATE_STALE": {
+      "category": "PORTFOLIO",
+      "check_id": "portfolio_state_presence",
+      "default_severity": "blocking",
+      "description": "The portfolio snapshot is older than the policy tolerates."
+    },
+    "POSITION_LIMIT_EXCEEDED": {
+      "category": "ORDER",
+      "check_id": "position_limit",
+      "default_severity": "blocking",
+      "description": "Total quantity exceeds the policy max_quantity."
+    },
+    "PRICE_MISSING": {
+      "category": "MARKET_DATA",
+      "check_id": "market_data_presence",
+      "default_severity": "blocking",
+      "description": "No price for the proposal symbol (or an option leg) in the market snapshot."
+    },
+    "PROPOSAL_EXPIRED": {
+      "category": "ORDER",
+      "check_id": "proposal_expiry",
+      "default_severity": "blocking",
+      "description": "The proposal expires_at is not after the engine evaluation time."
+    },
+    "REAUTHORIZATION_REQUIRED": {
+      "category": "EXECUTION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "Fresh state supports less than the authorized quantity or a higher response level; a new authorization is required."
+    },
+    "RECORD_NOT_FOUND": {
+      "category": "AUDIT",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "No record with that id exists for this tenant."
+    },
+    "RESPONSE_LEVEL_ESCALATED": {
+      "category": "CONTROL",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The tenant graduated-response level rose after the authorization was issued."
+    },
+    "RESPONSE_LEVEL_HALT": {
+      "category": "CONTROL",
+      "check_id": "response_level_gate",
+      "default_severity": "blocking",
+      "description": "The current response level halts all trading."
+    },
+    "RESPONSE_LEVEL_RESTRICTS_NEW_RISK": {
+      "category": "CONTROL",
+      "check_id": "response_level_gate",
+      "default_severity": "blocking",
+      "description": "The current response level does not allow new risk."
+    },
+    "RESTRICTED_STRATEGY": {
+      "category": "ORDER",
+      "check_id": "restricted_strategy",
+      "default_severity": "blocking",
+      "description": "The strategy is on the policy restricted list."
+    },
+    "RESTRICTED_SYMBOL": {
+      "category": "ORDER",
+      "check_id": "restricted_symbol",
+      "default_severity": "blocking",
+      "description": "The symbol is on the policy restricted list."
+    },
+    "REWARD_RISK_BELOW_MINIMUM": {
+      "category": "ORDER",
+      "check_id": "reward_risk",
+      "default_severity": "blocking",
+      "description": "The reward-to-risk ratio implied by the invalidation and target is below the policy minimum."
+    },
+    "RISK_PER_TRADE_EXCEEDED": {
+      "category": "ORDER",
+      "check_id": "risk_per_trade",
+      "default_severity": "blocking",
+      "description": "Risk to the invalidation level exceeds the policy share of equity."
+    },
+    "SCHEMA_INVALID": {
+      "category": "SCHEMA",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The payload does not validate against its contract schema."
+    },
+    "SECTOR_CONCENTRATION_EXCEEDED": {
+      "category": "PORTFOLIO",
+      "check_id": "sector_concentration",
+      "default_severity": "blocking",
+      "description": "Post-trade sector exposure would exceed the policy ratio of equity."
+    },
+    "SECTOR_DATA_MISSING": {
+      "category": "PORTFOLIO",
+      "check_id": "sector_concentration",
+      "default_severity": "blocking",
+      "description": "Sector classification is missing for a symbol the sector check needs."
+    },
+    "SESSION_WINDOW_RESTRICTED": {
+      "category": "TIME",
+      "check_id": "session_window",
+      "default_severity": "blocking",
+      "description": "The proposal falls outside the permitted session window."
+    },
+    "SIGNAL_SOURCE_CONCENTRATION_EXCEEDED": {
+      "category": "AGGREGATE",
+      "check_id": "signal_source_concentration",
+      "default_severity": "blocking",
+      "description": "Exposure attributable to one signal source would exceed the policy ratio."
+    },
+    "SIZE_REDUCED_TO_POLICY_CAP": {
+      "category": "ORDER",
+      "check_id": null,
+      "default_severity": "warning",
+      "description": "The authorized quantity was reduced to the binding policy cap."
+    },
+    "SIZE_SCALED_BY_DRAWDOWN": {
+      "category": "PATH",
+      "check_id": "drawdown_size_scaling",
+      "default_severity": "warning",
+      "description": "Size was scaled down by the policy drawdown multiplier."
+    },
+    "STATE_BINDING_MISMATCH": {
+      "category": "AUTHORIZATION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The state hashes bound into the authorization do not match the state the decision was made under."
+    },
+    "STRESS_LOSS_EXCEEDED": {
+      "category": "TAIL",
+      "check_id": "stress_scenarios",
+      "default_severity": "blocking",
+      "description": "Loss under the worst stress scenario would exceed the policy ratio of equity."
+    },
+    "STRUCTURE_INVALID": {
+      "category": "OPTIONS",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The legs do not form the declared strategy."
+    },
+    "TENANT_ACCESS_DENIED": {
+      "category": "TENANT",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The caller is not permitted to act for this tenant."
+    },
+    "TENANT_MISMATCH": {
+      "category": "TENANT",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The policy, context and proposal do not belong to the same tenant."
+    },
+    "TOCTOU_STATE_CHANGED": {
+      "category": "EXECUTION",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "Risk-relevant state changed between authorization and execution."
+    },
+    "UNDEFINED_RISK_REQUIRES_APPROVAL": {
+      "category": "OPTIONS",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "An undefined-risk structure requires human approval, which the engine cannot grant."
+    },
+    "UNKNOWN_FIELD": {
+      "category": "SCHEMA",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The payload carries a field the contract does not define."
+    },
+    "UNSUPPORTED_ASSET_CLASS": {
+      "category": "ORDER",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The asset class is not supported by this engine."
+    },
+    "UNSUPPORTED_STRATEGY": {
+      "category": "ORDER",
+      "check_id": null,
+      "default_severity": "blocking",
+      "description": "The strategy is not supported by this engine."
+    }
+  },
+  "version": "1.0.0"
+}

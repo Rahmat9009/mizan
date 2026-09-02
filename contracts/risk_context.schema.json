@@ -1,0 +1,1262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mizan.dev/contracts/1.0.0/risk_context.schema.json",
+  "title": "RiskContext",
+  "description": "Everything the deterministic engine is allowed to know, captured at one instant.",
+  "x-mizan-schema-version": "1.0.0",
+  "x-mizan-generated-from": "mizan.contracts.risk_context.RiskContext",
+  "$defs": {
+    "AgentState": {
+      "additionalProperties": false,
+      "properties": {
+        "as_of": {
+          "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "daily_notional_used": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Daily Notional Used",
+          "type": "string"
+        },
+        "daily_order_count": {
+          "minimum": 0,
+          "title": "Daily Order Count",
+          "type": "integer"
+        },
+        "open_positions": {
+          "minimum": 0,
+          "title": "Open Positions",
+          "type": "integer"
+        },
+        "calibration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Calibration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "as_of",
+        "daily_notional_used",
+        "daily_order_count",
+        "open_positions"
+      ],
+      "title": "AgentState",
+      "type": "object"
+    },
+    "AggregateState": {
+      "additionalProperties": false,
+      "description": "Book-level exposure across every agent of the tenant (R-AGG-1..6).",
+      "properties": {
+        "as_of": {
+          "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "gross_exposure": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Gross Exposure",
+          "type": "string"
+        },
+        "net_exposure": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Net Exposure",
+          "type": "string"
+        },
+        "exposure_pct_of_equity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Exposure Pct Of Equity",
+          "type": "string"
+        },
+        "exposure_by_agent": {
+          "patternProperties": {
+            "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$": {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            }
+          },
+          "title": "Exposure By Agent",
+          "type": "object",
+          "additionalProperties": false
+        },
+        "exposure_by_model_provider": {
+          "additionalProperties": {
+            "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+            "type": "string"
+          },
+          "propertyNames": {
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "title": "Exposure By Model Provider",
+          "type": "object"
+        },
+        "exposure_by_signal_source": {
+          "additionalProperties": {
+            "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+            "type": "string"
+          },
+          "propertyNames": {
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "title": "Exposure By Signal Source",
+          "type": "object"
+        },
+        "exposure_by_sector": {
+          "additionalProperties": {
+            "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+            "type": "string"
+          },
+          "propertyNames": {
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "title": "Exposure By Sector",
+          "type": "object"
+        },
+        "pending_intents": {
+          "items": {
+            "$ref": "#/$defs/PendingIntent"
+          },
+          "title": "Pending Intents",
+          "type": "array"
+        },
+        "crowding_score": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Crowding Score"
+        },
+        "days_to_liquidate_book": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Days To Liquidate Book"
+        }
+      },
+      "required": [
+        "as_of",
+        "gross_exposure",
+        "net_exposure",
+        "exposure_pct_of_equity"
+      ],
+      "title": "AggregateState",
+      "type": "object"
+    },
+    "CalendarState": {
+      "additionalProperties": false,
+      "properties": {
+        "session": {
+          "enum": [
+            "pre",
+            "open",
+            "close",
+            "after",
+            "closed"
+          ],
+          "title": "Session",
+          "type": "string"
+        },
+        "minutes_since_open": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minutes Since Open"
+        },
+        "minutes_to_close": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minutes To Close"
+        },
+        "earnings_within_days": {
+          "patternProperties": {
+            "^[A-Z][A-Z0-9.-]{0,15}$": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "title": "Earnings Within Days",
+          "type": "object",
+          "additionalProperties": false
+        },
+        "macro_event_within_minutes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Macro Event Within Minutes"
+        },
+        "is_holiday_or_half_day": {
+          "title": "Is Holiday Or Half Day",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "session",
+        "is_holiday_or_half_day"
+      ],
+      "title": "CalendarState",
+      "type": "object"
+    },
+    "Calibration": {
+      "additionalProperties": false,
+      "properties": {
+        "claimed_confidence_mean": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Claimed Confidence Mean",
+          "type": "string"
+        },
+        "realized_hit_rate": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Realized Hit Rate",
+          "type": "string"
+        },
+        "sample_size": {
+          "minimum": 0,
+          "title": "Sample Size",
+          "type": "integer"
+        },
+        "expectancy": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expectancy"
+        }
+      },
+      "required": [
+        "claimed_confidence_mean",
+        "realized_hit_rate",
+        "sample_size"
+      ],
+      "title": "Calibration",
+      "type": "object"
+    },
+    "MarketSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "snapshot_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Snapshot Id",
+          "type": "string"
+        },
+        "as_of": {
+          "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "quotes": {
+          "patternProperties": {
+            "^[A-Z][A-Z0-9.-]{0,15}$": {
+              "$ref": "#/$defs/Quote"
+            }
+          },
+          "title": "Quotes",
+          "type": "object",
+          "additionalProperties": false
+        },
+        "option_quotes": {
+          "patternProperties": {
+            "^[A-Z][A-Z0-9]{0,5}\\d{6}[CP]\\d{8}$": {
+              "$ref": "#/$defs/OptionQuote"
+            }
+          },
+          "title": "Option Quotes",
+          "type": "object",
+          "additionalProperties": false
+        },
+        "sectors": {
+          "patternProperties": {
+            "^[A-Z][A-Z0-9.-]{0,15}$": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "title": "Sectors",
+          "type": "object",
+          "additionalProperties": false
+        },
+        "source": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "as_of",
+        "quotes",
+        "source"
+      ],
+      "title": "MarketSnapshot",
+      "type": "object"
+    },
+    "OptionQuote": {
+      "additionalProperties": false,
+      "properties": {
+        "occ_symbol": {
+          "pattern": "^[A-Z][A-Z0-9]{0,5}\\d{6}[CP]\\d{8}$",
+          "title": "Occ Symbol",
+          "type": "string"
+        },
+        "mark": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Mark",
+          "type": "string"
+        },
+        "delta": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Delta"
+        },
+        "gamma": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Gamma"
+        },
+        "vega": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Vega"
+        },
+        "theta": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Theta"
+        },
+        "as_of": {
+          "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "open_interest": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Open Interest"
+        },
+        "spread_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Spread Pct"
+        },
+        "iv": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Iv"
+        }
+      },
+      "required": [
+        "occ_symbol",
+        "mark",
+        "delta",
+        "gamma",
+        "vega",
+        "theta",
+        "as_of",
+        "source"
+      ],
+      "title": "OptionQuote",
+      "type": "object"
+    },
+    "PathState": {
+      "additionalProperties": false,
+      "description": "Running path-dependent state of the account (R-ERG-2).",
+      "properties": {
+        "as_of": {
+          "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "peak_equity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Peak Equity",
+          "type": "string"
+        },
+        "current_drawdown_pct": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Current Drawdown Pct",
+          "type": "string"
+        },
+        "consecutive_losses": {
+          "minimum": 0,
+          "title": "Consecutive Losses",
+          "type": "integer"
+        },
+        "days_under_water": {
+          "minimum": 0,
+          "title": "Days Under Water",
+          "type": "integer"
+        },
+        "daily_pnl_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Daily Pnl Pct"
+        },
+        "realized_expectancy": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Realized Expectancy"
+        },
+        "sample_size": {
+          "minimum": 0,
+          "title": "Sample Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "as_of",
+        "peak_equity",
+        "current_drawdown_pct",
+        "consecutive_losses",
+        "days_under_water",
+        "sample_size"
+      ],
+      "title": "PathState",
+      "type": "object"
+    },
+    "PendingIntent": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "symbol": {
+          "pattern": "^[A-Z][A-Z0-9.-]{0,15}$",
+          "title": "Symbol",
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "long",
+            "short"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "notional": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Notional",
+          "type": "string"
+        },
+        "proposed_at": {
+          "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+          "title": "Proposed At",
+          "type": "string"
+        },
+        "model_provider": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Provider"
+        }
+      },
+      "required": [
+        "agent_id",
+        "symbol",
+        "direction",
+        "notional",
+        "proposed_at"
+      ],
+      "title": "PendingIntent",
+      "type": "object"
+    },
+    "PolicyRef": {
+      "additionalProperties": false,
+      "properties": {
+        "policy_id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+          "title": "Policy Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+          "title": "Version",
+          "type": "string"
+        },
+        "hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "policy_id",
+        "version",
+        "hash"
+      ],
+      "title": "PolicyRef",
+      "type": "object"
+    },
+    "PortfolioGreeks": {
+      "additionalProperties": false,
+      "properties": {
+        "delta": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Delta"
+        },
+        "gamma": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Gamma"
+        },
+        "vega": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Vega"
+        },
+        "short_gamma": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Short Gamma"
+        },
+        "long_gamma": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Long Gamma"
+        },
+        "short_vega": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Short Vega"
+        },
+        "long_vega": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Long Vega"
+        }
+      },
+      "required": [
+        "delta",
+        "gamma",
+        "vega"
+      ],
+      "title": "PortfolioGreeks",
+      "type": "object"
+    },
+    "PortfolioSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "snapshot_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Snapshot Id",
+          "type": "string"
+        },
+        "as_of": {
+          "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "equity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Equity",
+          "type": "string"
+        },
+        "cash": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Cash",
+          "type": "string"
+        },
+        "buying_power": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Buying Power"
+        },
+        "peak_equity": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Peak Equity"
+        },
+        "daily_pnl": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Daily Pnl"
+        },
+        "positions": {
+          "items": {
+            "$ref": "#/$defs/Position"
+          },
+          "title": "Positions",
+          "type": "array"
+        },
+        "greeks": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortfolioGreeks"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "gross_exposure": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gross Exposure"
+        },
+        "net_exposure": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Net Exposure"
+        },
+        "margin_requirement": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Margin Requirement"
+        },
+        "maintenance_excess": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maintenance Excess"
+        },
+        "factor_exposures": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+                "type": "string"
+              },
+              "propertyNames": {
+                "maxLength": 256,
+                "minLength": 1
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Factor Exposures"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "as_of",
+        "equity",
+        "cash",
+        "buying_power",
+        "peak_equity",
+        "daily_pnl",
+        "positions",
+        "greeks",
+        "source"
+      ],
+      "title": "PortfolioSnapshot",
+      "type": "object"
+    },
+    "Position": {
+      "additionalProperties": false,
+      "properties": {
+        "symbol": {
+          "pattern": "^[A-Z][A-Z0-9.-]{0,15}$",
+          "title": "Symbol",
+          "type": "string"
+        },
+        "asset_class": {
+          "enum": [
+            "equity",
+            "equity_option"
+          ],
+          "title": "Asset Class",
+          "type": "string"
+        },
+        "quantity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Quantity",
+          "type": "string"
+        },
+        "market_value": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Market Value",
+          "type": "string"
+        },
+        "sector": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sector"
+        },
+        "occ_symbol": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z][A-Z0-9]{0,5}\\d{6}[CP]\\d{8}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Occ Symbol"
+        },
+        "delta": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Delta"
+        },
+        "gamma": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Gamma"
+        },
+        "vega": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Vega"
+        }
+      },
+      "required": [
+        "symbol",
+        "asset_class",
+        "quantity",
+        "market_value",
+        "sector",
+        "occ_symbol",
+        "delta",
+        "gamma",
+        "vega"
+      ],
+      "title": "Position",
+      "type": "object"
+    },
+    "Quote": {
+      "additionalProperties": false,
+      "properties": {
+        "symbol": {
+          "pattern": "^[A-Z][A-Z0-9.-]{0,15}$",
+          "title": "Symbol",
+          "type": "string"
+        },
+        "price": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Price",
+          "type": "string"
+        },
+        "bid": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Bid"
+        },
+        "ask": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ask"
+        },
+        "as_of": {
+          "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "adv": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adv"
+        },
+        "spread_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Spread Pct"
+        }
+      },
+      "required": [
+        "symbol",
+        "price",
+        "bid",
+        "ask",
+        "as_of",
+        "source"
+      ],
+      "title": "Quote",
+      "type": "object"
+    },
+    "RecentOrder": {
+      "additionalProperties": false,
+      "properties": {
+        "proposal_id": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Proposal Id",
+          "type": "string"
+        },
+        "symbol": {
+          "pattern": "^[A-Z][A-Z0-9.-]{0,15}$",
+          "title": "Symbol",
+          "type": "string"
+        },
+        "side": {
+          "enum": [
+            "buy",
+            "sell"
+          ],
+          "title": "Side",
+          "type": "string"
+        },
+        "total_quantity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Total Quantity",
+          "type": "string"
+        },
+        "submitted_at": {
+          "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+          "title": "Submitted At",
+          "type": "string"
+        },
+        "status": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "proposal_id",
+        "symbol",
+        "side",
+        "total_quantity",
+        "submitted_at",
+        "status"
+      ],
+      "title": "RecentOrder",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "context_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Context Id",
+      "type": "string"
+    },
+    "tenant_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "agent_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "evaluated_at": {
+      "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+      "title": "Evaluated At",
+      "type": "string"
+    },
+    "policy": {
+      "$ref": "#/$defs/PolicyRef"
+    },
+    "market_snapshot": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MarketSnapshot"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "portfolio_snapshot": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PortfolioSnapshot"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "recent_orders": {
+      "items": {
+        "$ref": "#/$defs/RecentOrder"
+      },
+      "title": "Recent Orders",
+      "type": "array"
+    },
+    "engine_version": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Engine Version",
+      "type": "string"
+    },
+    "path_state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PathState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "aggregate_state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AggregateState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "agent_state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AgentState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "response_level": {
+      "default": 0,
+      "maximum": 5,
+      "minimum": 0,
+      "title": "Response Level",
+      "type": "integer"
+    },
+    "calendar": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CalendarState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "schema_version",
+    "context_id",
+    "tenant_id",
+    "agent_id",
+    "evaluated_at",
+    "policy",
+    "market_snapshot",
+    "portfolio_snapshot",
+    "engine_version"
+  ],
+  "type": "object"
+}

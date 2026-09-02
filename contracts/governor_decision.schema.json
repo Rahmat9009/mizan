@@ -1,0 +1,483 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mizan.dev/contracts/1.0.0/governor_decision.schema.json",
+  "title": "GovernorDecision",
+  "description": "Arbitration between the deterministic verdict and the advisory opinion.",
+  "x-mizan-schema-version": "1.0.0",
+  "x-mizan-generated-from": "mizan.contracts.governor_decision.GovernorDecision",
+  "$defs": {
+    "AdvisoryOpinion": {
+      "additionalProperties": false,
+      "description": "What the (optional) LLM advisory said. Downward-only by type: CONCUR, REDUCE or REJECT.",
+      "properties": {
+        "profile": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Profile",
+          "type": "string"
+        },
+        "invoked": {
+          "title": "Invoked",
+          "type": "boolean"
+        },
+        "available": {
+          "title": "Available",
+          "type": "boolean"
+        },
+        "recommendation": {
+          "anyOf": [
+            {
+              "enum": [
+                "CONCUR",
+                "REDUCE",
+                "REJECT"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Recommendation"
+        },
+        "recommended_quantity": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Recommended Quantity"
+        },
+        "reasoning": {
+          "default": "",
+          "maxLength": 20000,
+          "title": "Reasoning",
+          "type": "string"
+        },
+        "authority_ceiling": {
+          "const": "reduce_or_reject",
+          "title": "Authority Ceiling",
+          "type": "string"
+        },
+        "provider_ref": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Ref"
+        },
+        "raw_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Raw Hash"
+        }
+      },
+      "required": [
+        "profile",
+        "invoked",
+        "available",
+        "recommendation",
+        "recommended_quantity",
+        "authority_ceiling",
+        "provider_ref",
+        "raw_hash"
+      ],
+      "title": "AdvisoryOpinion",
+      "type": "object"
+    },
+    "Authorized": {
+      "additionalProperties": false,
+      "properties": {
+        "total_quantity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Total Quantity",
+          "type": "string"
+        },
+        "total_notional": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Total Notional"
+        },
+        "legs": {
+          "items": {
+            "$ref": "#/$defs/AuthorizedLegQuantity"
+          },
+          "maxItems": 4,
+          "title": "Legs",
+          "type": "array"
+        },
+        "reductions": {
+          "items": {
+            "$ref": "#/$defs/Reduction"
+          },
+          "title": "Reductions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "total_quantity",
+        "total_notional",
+        "legs",
+        "reductions"
+      ],
+      "title": "Authorized",
+      "type": "object"
+    },
+    "AuthorizedLegQuantity": {
+      "additionalProperties": false,
+      "properties": {
+        "leg_index": {
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Leg Index",
+          "type": "integer"
+        },
+        "quantity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Quantity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "leg_index",
+        "quantity"
+      ],
+      "title": "AuthorizedLegQuantity",
+      "type": "object"
+    },
+    "PolicyRef": {
+      "additionalProperties": false,
+      "properties": {
+        "policy_id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+          "title": "Policy Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+          "title": "Version",
+          "type": "string"
+        },
+        "hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "policy_id",
+        "version",
+        "hash"
+      ],
+      "title": "PolicyRef",
+      "type": "object"
+    },
+    "Quantities": {
+      "additionalProperties": false,
+      "properties": {
+        "total_quantity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Total Quantity",
+          "type": "string"
+        },
+        "total_notional": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Total Notional"
+        }
+      },
+      "required": [
+        "total_quantity",
+        "total_notional"
+      ],
+      "title": "Quantities",
+      "type": "object"
+    },
+    "ReasonCode": {
+      "description": "Machine-readable reason codes from contracts/reason_codes.json (version REASON_CODE_VERSION).",
+      "enum": [
+        "ABSORBING_BARRIER_BREACHED",
+        "ADVISORY_CLAMPED",
+        "ADVISORY_INVALID_OUTPUT",
+        "ADVISORY_REDUCE",
+        "ADVISORY_REJECT",
+        "ADVISORY_SKIPPED",
+        "ADVISORY_UNAVAILABLE",
+        "ADV_PARTICIPATION_EXCEEDED",
+        "AGENT_DAILY_NOTIONAL_EXCEEDED",
+        "AGENT_DAILY_ORDERS_EXCEEDED",
+        "AGENT_OPEN_POSITIONS_EXCEEDED",
+        "AGENT_OUTSIDE_ACTIVE_HOURS",
+        "AGENT_STATE_MISSING",
+        "AGENT_SYMBOL_NOT_ALLOWED",
+        "AGGREGATE_EXPOSURE_EXCEEDED",
+        "AGGREGATE_STATE_MISSING",
+        "ASSET_NOT_TRADABLE",
+        "ASSIGNMENT_RISK",
+        "AUTHORIZATION_ALREADY_USED",
+        "AUTHORIZATION_EXPIRED",
+        "AUTHORIZATION_INVALID",
+        "AUTHORIZATION_NOT_YET_VALID",
+        "AUTHORIZATION_SCOPE_MISMATCH",
+        "BOOK_LIQUIDATION_TIME_EXCEEDED",
+        "BROKER_REJECTED",
+        "BROKER_UNAVAILABLE",
+        "BUYING_POWER_MISSING",
+        "BUYING_POWER_UTILIZATION_EXCEEDED",
+        "CALENDAR_MISSING",
+        "CAPITAL_THRESHOLD_EXCEEDED",
+        "CHAIN_INTEGRITY_FAILED",
+        "CHECK_NOT_IMPLEMENTED",
+        "CONCENTRATION_LIMIT_EXCEEDED",
+        "CONFIDENCE_HAIRCUT_APPLIED",
+        "CONSECUTIVE_LOSS_REVIEW",
+        "CORRELATED_INTENT_DETECTED",
+        "CROWDING_THRESHOLD_EXCEEDED",
+        "DAYS_UNDER_WATER_EXCEEDED",
+        "DRAWDOWN_LIMIT_BREACHED",
+        "DTE_ABOVE_MAXIMUM",
+        "DTE_BELOW_MINIMUM",
+        "DUPLICATE_ORDER",
+        "EARNINGS_BLACKOUT",
+        "ENGINE_DEGRADED",
+        "ENGINE_VERSION_MISMATCH",
+        "ERRONEOUS_PRICE_DEVIATION",
+        "ERRONEOUS_QUANTITY_DEVIATION",
+        "ESTIMATED_IMPACT_EXCEEDED",
+        "EXECUTION_DISABLED",
+        "EXPECTED_SHORTFALL_EXCEEDED",
+        "FACTOR_EXPOSURE_EXCEEDED",
+        "GREEKS_MISSING",
+        "HARD_REJECTION_UPHELD",
+        "IDEMPOTENT_ORDER_EXISTS",
+        "INSUFFICIENT_BUYING_POWER",
+        "INVALIDATION_MISSING",
+        "INVALID_PRICE",
+        "INVALID_QUANTITY",
+        "KILL_SWITCH_ACTIVE",
+        "LEG_LIMIT_EXCEEDED",
+        "LIQUIDITY_DATA_MISSING",
+        "LIVE_TRADING_FORBIDDEN",
+        "MACRO_EVENT_BLACKOUT",
+        "MARKET_CLOSED",
+        "MARKET_DATA_MISSING",
+        "MARKET_DATA_STALE",
+        "MODEL_PROVIDER_CONCENTRATION_EXCEEDED",
+        "NAKED_SHORT_NOT_PERMITTED",
+        "OPTIONS_DELTA_LIMIT_EXCEEDED",
+        "OPTIONS_GAMMA_LIMIT_EXCEEDED",
+        "OPTIONS_SHORT_GAMMA_LIMIT_EXCEEDED",
+        "OPTIONS_SHORT_VEGA_LIMIT_EXCEEDED",
+        "OPTIONS_VEGA_LIMIT_EXCEEDED",
+        "OPTION_OPEN_INTEREST_TOO_LOW",
+        "OPTION_SPREAD_TOO_WIDE",
+        "OVERNIGHT_EXPOSURE_EXCEEDED",
+        "PATH_STATE_MISSING",
+        "PIN_RISK",
+        "POLICY_HASH_MISMATCH",
+        "POLICY_INVALID",
+        "POLICY_NOT_FOUND",
+        "PORTFOLIO_STATE_MISSING",
+        "PORTFOLIO_STATE_STALE",
+        "POSITION_LIMIT_EXCEEDED",
+        "PRICE_MISSING",
+        "PROPOSAL_EXPIRED",
+        "REAUTHORIZATION_REQUIRED",
+        "RECORD_NOT_FOUND",
+        "RESPONSE_LEVEL_ESCALATED",
+        "RESPONSE_LEVEL_HALT",
+        "RESPONSE_LEVEL_RESTRICTS_NEW_RISK",
+        "RESTRICTED_STRATEGY",
+        "RESTRICTED_SYMBOL",
+        "REWARD_RISK_BELOW_MINIMUM",
+        "RISK_PER_TRADE_EXCEEDED",
+        "SCHEMA_INVALID",
+        "SECTOR_CONCENTRATION_EXCEEDED",
+        "SECTOR_DATA_MISSING",
+        "SESSION_WINDOW_RESTRICTED",
+        "SIGNAL_SOURCE_CONCENTRATION_EXCEEDED",
+        "SIZE_REDUCED_TO_POLICY_CAP",
+        "SIZE_SCALED_BY_DRAWDOWN",
+        "STATE_BINDING_MISMATCH",
+        "STRESS_LOSS_EXCEEDED",
+        "STRUCTURE_INVALID",
+        "TENANT_ACCESS_DENIED",
+        "TENANT_MISMATCH",
+        "TOCTOU_STATE_CHANGED",
+        "UNDEFINED_RISK_REQUIRES_APPROVAL",
+        "UNKNOWN_FIELD",
+        "UNSUPPORTED_ASSET_CLASS",
+        "UNSUPPORTED_STRATEGY"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    },
+    "Reduction": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "enum": [
+            "deterministic",
+            "advisory"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "from_quantity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "From Quantity",
+          "type": "string"
+        },
+        "to_quantity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "To Quantity",
+          "type": "string"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/ReasonCode"
+        }
+      },
+      "required": [
+        "source",
+        "from_quantity",
+        "to_quantity",
+        "reason_code"
+      ],
+      "title": "Reduction",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "decision_id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "title": "Decision Id",
+      "type": "string"
+    },
+    "proposal_id": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Proposal Id",
+      "type": "string"
+    },
+    "evaluation_id": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Evaluation Id",
+      "type": "string"
+    },
+    "tenant_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "agent_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "policy": {
+      "$ref": "#/$defs/PolicyRef"
+    },
+    "engine_version": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Engine Version",
+      "type": "string"
+    },
+    "decision_timestamp": {
+      "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+      "title": "Decision Timestamp",
+      "type": "string"
+    },
+    "verdict": {
+      "enum": [
+        "APPROVE",
+        "REDUCE",
+        "REJECT"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    },
+    "reason_codes": {
+      "items": {
+        "$ref": "#/$defs/ReasonCode"
+      },
+      "title": "Reason Codes",
+      "type": "array"
+    },
+    "original": {
+      "$ref": "#/$defs/Quantities"
+    },
+    "authorized": {
+      "$ref": "#/$defs/Authorized"
+    },
+    "llm_advisory": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AdvisoryOpinion"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "verdict_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Verdict Hash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "decision_id",
+    "proposal_id",
+    "evaluation_id",
+    "tenant_id",
+    "agent_id",
+    "policy",
+    "engine_version",
+    "decision_timestamp",
+    "verdict",
+    "reason_codes",
+    "original",
+    "authorized",
+    "llm_advisory",
+    "verdict_hash"
+  ],
+  "type": "object"
+}

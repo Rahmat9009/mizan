@@ -1,0 +1,390 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mizan.dev/contracts/1.0.0/execution_authorization.schema.json",
+  "title": "ExecutionAuthorization",
+  "description": "Short-lived, single-use, state-bound permission to submit one order.",
+  "x-mizan-schema-version": "1.0.0",
+  "x-mizan-generated-from": "mizan.contracts.execution_authorization.ExecutionAuthorization",
+  "$defs": {
+    "AuthorizationScope": {
+      "additionalProperties": false,
+      "properties": {
+        "symbol": {
+          "pattern": "^[A-Z][A-Z0-9.-]{0,15}$",
+          "title": "Symbol",
+          "type": "string"
+        },
+        "asset_class": {
+          "enum": [
+            "equity",
+            "equity_option"
+          ],
+          "title": "Asset Class",
+          "type": "string"
+        },
+        "intent": {
+          "enum": [
+            "open",
+            "close",
+            "adjust"
+          ],
+          "title": "Intent",
+          "type": "string"
+        },
+        "legs": {
+          "items": {
+            "$ref": "#/$defs/AuthorizedLeg"
+          },
+          "maxItems": 4,
+          "minItems": 1,
+          "title": "Legs",
+          "type": "array"
+        },
+        "total_quantity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Total Quantity",
+          "type": "string"
+        },
+        "max_notional": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Max Notional"
+        }
+      },
+      "required": [
+        "symbol",
+        "asset_class",
+        "intent",
+        "legs",
+        "total_quantity",
+        "max_notional"
+      ],
+      "title": "AuthorizationScope",
+      "type": "object"
+    },
+    "AuthorizedLeg": {
+      "additionalProperties": false,
+      "properties": {
+        "leg_index": {
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Leg Index",
+          "type": "integer"
+        },
+        "side": {
+          "enum": [
+            "buy",
+            "sell"
+          ],
+          "title": "Side",
+          "type": "string"
+        },
+        "symbol": {
+          "pattern": "^[A-Z][A-Z0-9.-]{0,15}$",
+          "title": "Symbol",
+          "type": "string"
+        },
+        "occ_symbol": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z][A-Z0-9]{0,5}\\d{6}[CP]\\d{8}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Occ Symbol"
+        },
+        "contract_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "call",
+                "put"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Contract Type"
+        },
+        "strike": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Strike"
+        },
+        "expiry": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Expiry"
+        },
+        "quantity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Quantity",
+          "type": "string"
+        },
+        "limit_price": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Limit Price"
+        },
+        "order_type": {
+          "enum": [
+            "limit",
+            "market"
+          ],
+          "title": "Order Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "leg_index",
+        "side",
+        "symbol",
+        "occ_symbol",
+        "contract_type",
+        "strike",
+        "expiry",
+        "quantity",
+        "limit_price",
+        "order_type"
+      ],
+      "title": "AuthorizedLeg",
+      "type": "object"
+    },
+    "BoundState": {
+      "additionalProperties": false,
+      "description": "The state the decision was made under. The gate re-derives these from fresh state and compares.",
+      "properties": {
+        "policy_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Policy Hash",
+          "type": "string"
+        },
+        "portfolio_snapshot_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Portfolio Snapshot Id",
+          "type": "string"
+        },
+        "portfolio_state_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Portfolio State Hash",
+          "type": "string"
+        },
+        "market_snapshot_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Market Snapshot Id",
+          "type": "string"
+        },
+        "response_level": {
+          "maximum": 5,
+          "minimum": 0,
+          "title": "Response Level",
+          "type": "integer"
+        },
+        "path_state_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path State Hash"
+        },
+        "aggregate_state_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Aggregate State Hash"
+        }
+      },
+      "required": [
+        "policy_hash",
+        "portfolio_snapshot_id",
+        "portfolio_state_hash",
+        "market_snapshot_id",
+        "response_level"
+      ],
+      "title": "BoundState",
+      "type": "object"
+    },
+    "PolicyRef": {
+      "additionalProperties": false,
+      "properties": {
+        "policy_id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+          "title": "Policy Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+          "title": "Version",
+          "type": "string"
+        },
+        "hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "policy_id",
+        "version",
+        "hash"
+      ],
+      "title": "PolicyRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "auth_id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "title": "Auth Id",
+      "type": "string"
+    },
+    "decision_id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "title": "Decision Id",
+      "type": "string"
+    },
+    "proposal_id": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Proposal Id",
+      "type": "string"
+    },
+    "tenant_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "agent_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "policy": {
+      "$ref": "#/$defs/PolicyRef"
+    },
+    "engine_version": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Engine Version",
+      "type": "string"
+    },
+    "issued_at": {
+      "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "expires_at": {
+      "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "ttl_seconds": {
+      "maximum": 30,
+      "minimum": 5,
+      "title": "Ttl Seconds",
+      "type": "integer"
+    },
+    "scope": {
+      "$ref": "#/$defs/AuthorizationScope"
+    },
+    "idempotency_key": {
+      "pattern": "^mz1-[0-9a-f]{40}$",
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "environment": {
+      "title": "Environment",
+      "type": "string",
+      "enum": [
+        "paper"
+      ],
+      "description": "Paper is the only representable environment. Live trading is a separate deployment and security boundary, not a value of this field (Hard Rule B1)."
+    },
+    "single_use": {
+      "const": true,
+      "title": "Single Use",
+      "type": "boolean"
+    },
+    "authorization_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Authorization Hash",
+      "type": "string"
+    },
+    "bound_state": {
+      "$ref": "#/$defs/BoundState"
+    }
+  },
+  "required": [
+    "schema_version",
+    "auth_id",
+    "decision_id",
+    "proposal_id",
+    "tenant_id",
+    "agent_id",
+    "policy",
+    "engine_version",
+    "issued_at",
+    "expires_at",
+    "ttl_seconds",
+    "scope",
+    "idempotency_key",
+    "environment",
+    "single_use",
+    "authorization_hash",
+    "bound_state"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,1131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mizan.dev/contracts/1.0.0/policy.schema.json",
+  "title": "Policy",
+  "description": "The versioned, hashed rules a decision was made under.",
+  "x-mizan-schema-version": "1.0.0",
+  "x-mizan-generated-from": "mizan.contracts.policy.Policy",
+  "$defs": {
+    "AdvisoryConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "profile": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Profile",
+          "type": "string"
+        },
+        "authority_ceiling": {
+          "const": "reduce_or_reject",
+          "title": "Authority Ceiling",
+          "type": "string"
+        }
+      },
+      "required": [
+        "enabled",
+        "profile",
+        "authority_ceiling"
+      ],
+      "title": "AdvisoryConfig",
+      "type": "object"
+    },
+    "AgentBudget": {
+      "additionalProperties": false,
+      "properties": {
+        "max_daily_notional": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Daily Notional"
+        },
+        "max_daily_orders": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Daily Orders"
+        },
+        "max_open_positions": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Open Positions"
+        },
+        "allowed_symbols": {
+          "anyOf": [
+            {
+              "items": {
+                "pattern": "^[A-Z][A-Z0-9.-]{0,15}$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Allowed Symbols"
+        },
+        "active_hours_utc": {
+          "anyOf": [
+            {
+              "items": {
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                "type": "string"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active Hours Utc"
+        }
+      },
+      "title": "AgentBudget",
+      "type": "object"
+    },
+    "AggregatePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "max_portfolio_exposure_pct": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Max Portfolio Exposure Pct",
+          "type": "string"
+        },
+        "max_correlated_intent_agents": {
+          "minimum": 1,
+          "title": "Max Correlated Intent Agents",
+          "type": "integer"
+        },
+        "correlated_intent_window_seconds": {
+          "minimum": 1,
+          "title": "Correlated Intent Window Seconds",
+          "type": "integer"
+        },
+        "max_exposure_per_model_provider_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Exposure Per Model Provider Pct"
+        },
+        "max_exposure_per_signal_source_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Exposure Per Signal Source Pct"
+        },
+        "crowding_score_threshold": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Crowding Score Threshold"
+        },
+        "max_days_to_liquidate_book": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Days To Liquidate Book"
+        }
+      },
+      "required": [
+        "max_portfolio_exposure_pct",
+        "max_correlated_intent_agents",
+        "correlated_intent_window_seconds"
+      ],
+      "title": "AggregatePolicy",
+      "type": "object"
+    },
+    "AuthorizationConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "ttl_seconds": {
+          "default": 15,
+          "maximum": 30,
+          "minimum": 5,
+          "title": "Ttl Seconds",
+          "type": "integer"
+        }
+      },
+      "title": "AuthorizationConfig",
+      "type": "object"
+    },
+    "CheckConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "severity": {
+          "default": "blocking",
+          "enum": [
+            "blocking",
+            "warning"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "window_seconds": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Window Seconds"
+        },
+        "price_deviation_threshold": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Price Deviation Threshold"
+        },
+        "quantity_deviation_threshold": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quantity Deviation Threshold"
+        }
+      },
+      "title": "CheckConfig",
+      "type": "object"
+    },
+    "DrawdownScalingStep": {
+      "additionalProperties": false,
+      "properties": {
+        "drawdown_pct": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Drawdown Pct",
+          "type": "string"
+        },
+        "size_multiplier": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Size Multiplier",
+          "type": "string"
+        }
+      },
+      "required": [
+        "drawdown_pct",
+        "size_multiplier"
+      ],
+      "title": "DrawdownScalingStep",
+      "type": "object"
+    },
+    "FactorPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "model_version": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Model Version",
+          "type": "string"
+        },
+        "max_beta": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Beta"
+        },
+        "max_sector_exposure_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Sector Exposure Pct"
+        },
+        "min_effective_independent_bets": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Effective Independent Bets"
+        },
+        "max_factor_exposure": {
+          "additionalProperties": {
+            "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+            "type": "string"
+          },
+          "propertyNames": {
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "title": "Max Factor Exposure",
+          "type": "object"
+        }
+      },
+      "required": [
+        "model_version"
+      ],
+      "title": "FactorPolicy",
+      "type": "object"
+    },
+    "FailClosed": {
+      "additionalProperties": false,
+      "properties": {
+        "on_missing_market_data": {
+          "const": true,
+          "default": true,
+          "title": "On Missing Market Data",
+          "type": "boolean"
+        },
+        "on_missing_portfolio_state": {
+          "const": true,
+          "default": true,
+          "title": "On Missing Portfolio State",
+          "type": "boolean"
+        },
+        "on_engine_degraded": {
+          "const": true,
+          "default": true,
+          "title": "On Engine Degraded",
+          "type": "boolean"
+        },
+        "on_advisory_unavailable": {
+          "default": false,
+          "title": "On Advisory Unavailable",
+          "type": "boolean"
+        }
+      },
+      "title": "FailClosed",
+      "type": "object"
+    },
+    "LiquidityPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "max_pct_of_adv": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Max Pct Of Adv",
+          "type": "string"
+        },
+        "max_option_spread_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Option Spread Pct"
+        },
+        "min_option_open_interest": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Option Open Interest"
+        },
+        "max_estimated_impact_bps": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Estimated Impact Bps"
+        }
+      },
+      "required": [
+        "max_pct_of_adv"
+      ],
+      "title": "LiquidityPolicy",
+      "type": "object"
+    },
+    "OptionsLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "max_portfolio_delta": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Max Portfolio Delta",
+          "type": "string"
+        },
+        "max_portfolio_gamma": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Max Portfolio Gamma",
+          "type": "string"
+        },
+        "max_portfolio_vega": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Max Portfolio Vega",
+          "type": "string"
+        },
+        "min_days_to_expiry": {
+          "minimum": 0,
+          "title": "Min Days To Expiry",
+          "type": "integer"
+        },
+        "max_days_to_expiry": {
+          "minimum": 1,
+          "title": "Max Days To Expiry",
+          "type": "integer"
+        },
+        "max_short_gamma": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Short Gamma"
+        },
+        "max_long_gamma": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Long Gamma"
+        },
+        "max_short_vega": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Short Vega"
+        },
+        "max_long_vega": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Long Vega"
+        },
+        "undefined_risk_requires_approval": {
+          "const": true,
+          "default": true,
+          "title": "Undefined Risk Requires Approval",
+          "type": "boolean"
+        },
+        "assignment_risk_check": {
+          "default": true,
+          "title": "Assignment Risk Check",
+          "type": "boolean"
+        },
+        "pin_risk_buffer_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pin Risk Buffer Pct"
+        }
+      },
+      "required": [
+        "max_portfolio_delta",
+        "max_portfolio_gamma",
+        "max_portfolio_vega",
+        "min_days_to_expiry",
+        "max_days_to_expiry"
+      ],
+      "title": "OptionsLimits",
+      "type": "object"
+    },
+    "OrderLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "max_notional": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Max Notional",
+          "type": "string"
+        },
+        "max_quantity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Max Quantity",
+          "type": "string"
+        },
+        "max_legs": {
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Max Legs",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_notional",
+        "max_quantity",
+        "max_legs"
+      ],
+      "title": "OrderLimits",
+      "type": "object"
+    },
+    "PathPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "size_scaling_by_drawdown": {
+          "items": {
+            "$ref": "#/$defs/DrawdownScalingStep"
+          },
+          "title": "Size Scaling By Drawdown",
+          "type": "array"
+        },
+        "max_consecutive_losses_before_review": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Consecutive Losses Before Review"
+        },
+        "max_days_under_water": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Days Under Water"
+        }
+      },
+      "required": [
+        "size_scaling_by_drawdown"
+      ],
+      "title": "PathPolicy",
+      "type": "object"
+    },
+    "PortfolioLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "max_single_symbol_pct": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Max Single Symbol Pct",
+          "type": "string"
+        },
+        "max_sector_concentration_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Max Sector Concentration Pct"
+        },
+        "max_drawdown_pct": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Max Drawdown Pct",
+          "type": "string"
+        },
+        "max_buying_power_utilization": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Max Buying Power Utilization",
+          "type": "string"
+        }
+      },
+      "required": [
+        "max_single_symbol_pct",
+        "max_sector_concentration_pct",
+        "max_drawdown_pct",
+        "max_buying_power_utilization"
+      ],
+      "title": "PortfolioLimits",
+      "type": "object"
+    },
+    "ResponseLadder": {
+      "additionalProperties": false,
+      "properties": {
+        "levels": {
+          "items": {
+            "$ref": "#/$defs/ResponseLevelSpec"
+          },
+          "minItems": 1,
+          "title": "Levels",
+          "type": "array"
+        },
+        "de_escalation_requires_human": {
+          "const": true,
+          "default": true,
+          "title": "De Escalation Requires Human",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "levels"
+      ],
+      "title": "ResponseLadder",
+      "type": "object"
+    },
+    "ResponseLevelSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Level",
+          "type": "integer"
+        },
+        "trigger": {
+          "$ref": "#/$defs/ResponseTrigger"
+        },
+        "size_multiplier": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Size Multiplier",
+          "type": "string"
+        },
+        "new_risk_allowed": {
+          "title": "New Risk Allowed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "level",
+        "trigger",
+        "size_multiplier",
+        "new_risk_allowed"
+      ],
+      "title": "ResponseLevelSpec",
+      "type": "object"
+    },
+    "ResponseTrigger": {
+      "additionalProperties": false,
+      "properties": {
+        "daily_loss_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Daily Loss Pct"
+        },
+        "drawdown_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Drawdown Pct"
+        }
+      },
+      "title": "ResponseTrigger",
+      "type": "object"
+    },
+    "Restricted": {
+      "additionalProperties": false,
+      "properties": {
+        "symbols": {
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9.-]{0,15}$",
+            "type": "string"
+          },
+          "title": "Symbols",
+          "type": "array"
+        },
+        "strategies": {
+          "items": {
+            "enum": [
+              "long_equity",
+              "short_equity",
+              "long_call",
+              "long_put",
+              "bull_call_spread",
+              "bear_put_spread",
+              "bull_put_spread",
+              "bear_call_spread",
+              "iron_condor",
+              "custom"
+            ],
+            "type": "string"
+          },
+          "title": "Strategies",
+          "type": "array"
+        }
+      },
+      "title": "Restricted",
+      "type": "object"
+    },
+    "TailPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "absorbing_barrier_equity_floor": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Absorbing Barrier Equity Floor"
+        },
+        "stress_scenarios": {
+          "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Stress Scenarios",
+          "type": "array"
+        },
+        "max_loss_under_worst_scenario_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Loss Under Worst Scenario Pct"
+        },
+        "expected_shortfall_99_limit": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Shortfall 99 Limit"
+        }
+      },
+      "title": "TailPolicy",
+      "type": "object"
+    },
+    "TimePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "earnings_blackout_days_before": {
+          "minimum": 0,
+          "title": "Earnings Blackout Days Before",
+          "type": "integer"
+        },
+        "earnings_blackout_days_after": {
+          "minimum": 0,
+          "title": "Earnings Blackout Days After",
+          "type": "integer"
+        },
+        "macro_event_blackout_minutes": {
+          "minimum": 0,
+          "title": "Macro Event Blackout Minutes",
+          "type": "integer"
+        },
+        "no_trade_first_minutes": {
+          "minimum": 0,
+          "title": "No Trade First Minutes",
+          "type": "integer"
+        },
+        "no_trade_last_minutes": {
+          "minimum": 0,
+          "title": "No Trade Last Minutes",
+          "type": "integer"
+        },
+        "max_overnight_exposure_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Overnight Exposure Pct"
+        }
+      },
+      "required": [
+        "earnings_blackout_days_before",
+        "earnings_blackout_days_after",
+        "macro_event_blackout_minutes",
+        "no_trade_first_minutes",
+        "no_trade_last_minutes"
+      ],
+      "title": "TimePolicy",
+      "type": "object"
+    },
+    "TradeLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "max_risk_per_trade_pct": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Risk Per Trade Pct"
+        },
+        "min_reward_risk": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Reward Risk"
+        },
+        "require_invalidation": {
+          "default": false,
+          "title": "Require Invalidation",
+          "type": "boolean"
+        },
+        "confidence_haircut": {
+          "default": "0",
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Confidence Haircut",
+          "type": "string"
+        },
+        "kelly_fraction_cap": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kelly Fraction Cap"
+        }
+      },
+      "title": "TradeLimits",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "policy_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Policy Id",
+      "type": "string"
+    },
+    "policy_version": {
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+      "title": "Policy Version",
+      "type": "string"
+    },
+    "policy_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Policy Hash",
+      "type": "string"
+    },
+    "tenant_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "order": {
+      "$ref": "#/$defs/OrderLimits"
+    },
+    "portfolio": {
+      "$ref": "#/$defs/PortfolioLimits"
+    },
+    "options": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OptionsLimits"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "restricted": {
+      "$ref": "#/$defs/Restricted"
+    },
+    "checks": {
+      "additionalProperties": {
+        "$ref": "#/$defs/CheckConfig"
+      },
+      "title": "Checks",
+      "type": "object"
+    },
+    "advisory": {
+      "$ref": "#/$defs/AdvisoryConfig"
+    },
+    "authorization": {
+      "$ref": "#/$defs/AuthorizationConfig"
+    },
+    "fail_closed": {
+      "$ref": "#/$defs/FailClosed"
+    },
+    "trade": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TradeLimits"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "path": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PathPolicy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "aggregate": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AggregatePolicy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "agent_budgets": {
+      "patternProperties": {
+        "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$": {
+          "$ref": "#/$defs/AgentBudget"
+        }
+      },
+      "title": "Agent Budgets",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "response_ladder": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResponseLadder"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "liquidity": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LiquidityPolicy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "time": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TimePolicy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "tail": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TailPolicy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "factor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FactorPolicy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "schema_version",
+    "policy_id",
+    "policy_version",
+    "policy_hash",
+    "tenant_id",
+    "order",
+    "portfolio",
+    "options",
+    "restricted",
+    "checks",
+    "advisory",
+    "authorization",
+    "fail_closed"
+  ],
+  "type": "object"
+}

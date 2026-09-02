@@ -1,0 +1,28 @@
+# pre-commit framework configuration (optional). The plain-git alternative is
+#   python scripts/install_hooks.py
+# which installs .git/hooks/pre-commit running the same secret scan with no framework.
+#
+# All hooks are `language: system` on purpose: they run the ruff and Python already
+# pinned by pyproject.toml, so the hook, `make lint` and CI cannot drift apart, and
+# nothing is fetched from the network to run a commit.
+default_stages: [pre-commit]
+repos:
+  - repo: local
+    hooks:
+      - id: mizan-secret-scan
+        name: mizan secret scan (staged content)
+        entry: python scripts/secret_scan.py --staged
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: ruff-check
+        name: ruff check
+        entry: python -m ruff check --no-fix
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+      - id: block-env-files
+        name: block .env files (only .env.example may be committed)
+        entry: python -c "import sys; bad=[p for p in sys.argv[1:] if p.split('/')[-1]=='.env' or (p.split('/')[-1].startswith('.env.') and not p.endswith(('.example','.sample','.template')))]; print('\n'.join('refusing to commit: '+p for p in bad)); sys.exit(1 if bad else 0)"
+        language: system
+        pass_filenames: true

@@ -1,0 +1,61 @@
+{
+  "version": "1.0.0",
+  "codes": {
+    "VALIDATION_FAILED": {
+      "http_status": 422,
+      "message": "The request did not validate against the contract."
+    },
+    "NOT_FOUND": {
+      "http_status": 404,
+      "message": "The requested resource does not exist for this tenant."
+    },
+    "TENANT_FORBIDDEN": {
+      "http_status": 403,
+      "message": "The caller is not permitted to act for this tenant."
+    },
+    "POLICY_ERROR": {
+      "http_status": 422,
+      "message": "The policy is invalid or cannot be loaded."
+    },
+    "ENGINE_ERROR": {
+      "http_status": 503,
+      "message": "The risk engine is unavailable or degraded; the request was refused."
+    },
+    "LEDGER_ERROR": {
+      "http_status": 503,
+      "message": "The decision ledger is unavailable; the request was refused."
+    },
+    "CHAIN_INTEGRITY_ERROR": {
+      "http_status": 409,
+      "message": "The decision ledger hash chain failed verification."
+    },
+    "AUTHORIZATION_ERROR": {
+      "http_status": 409,
+      "message": "The execution authorization is invalid, expired or out of scope."
+    },
+    "EXECUTION_BLOCKED": {
+      "http_status": 409,
+      "message": "Execution was blocked by a pre-trade control."
+    },
+    "BROKER_ERROR": {
+      "http_status": 503,
+      "message": "The broker could not be reached or rejected the request."
+    },
+    "KILL_SWITCH_ACTIVE": {
+      "http_status": 423,
+      "message": "The kill switch is active; execution is locked."
+    },
+    "LIVE_TRADING_FORBIDDEN": {
+      "http_status": 403,
+      "message": "Only paper trading exists; a non-paper configuration was refused."
+    },
+    "CONFIGURATION_ERROR": {
+      "http_status": 500,
+      "message": "The service is misconfigured."
+    },
+    "RATE_LIMITED": {
+      "http_status": 429,
+      "message": "Too many requests."
+    }
+  }
+}

@@ -1,0 +1,205 @@
+# Mizan CI. Every suite is its own job so that a failure is attributable and a
+# pending invariant is VISIBLE (red on its own job), never hidden inside a bigger run.
+#
+# Jobs
+#   lint          ruff over the repository (legacy app/ ui/ demos are excluded in pyproject)
+#   typecheck     mypy over mizan/ -- non-blocking during Sprint 1 (stubs), blocking from the S2 checkpoint
+#   secret-scan   self-test, working tree (--all) and full history (--history); stdlib only, full clone
+#   contracts     tests/contracts (L0 contract conformance)
+#   unit          tests/ minus invariants, security, integration
+#   invariants    tests/invariants (Hard Rules; red-until-implemented is a visible red, not a skip)
+#   security      tests/security (L5)
+#   integration   tests/integration (L6)
+#   postgres-ddl  applies infra/postgres/init/*.sql to a real postgres:16, provisions a tenant and PROVES that
+#                 UPDATE / DELETE / TRUNCATE are refused and cross-tenant access is impossible. This is the only
+#                 place the DDL executes automatically; the Docker daemon is not available on the dev box.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  # There is no live mode. Every job runs with the only accepted value.
+  ALPACA_PAPER: "true"
+  MIZAN_EXECUTION_ENABLED: "false"
+  MIZAN_EXECUTION_DRY_RUN: "true"
+  MIZAN_KILL_SWITCH: "false"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m ruff check --output-format=github .
+
+  typecheck:
+    runs-on: ubuntu-latest
+    # Non-blocking while lane modules are NotImplementedError stubs (Sprint 1).
+    # Flip to false at the Sprint-2 checkpoint; do not leave it true by inertia.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[dev,advisory]"
+      - run: python -m mypy
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # --history needs every commit on every branch
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: self-test
+        run: python scripts/secret_scan.py --self-test
+      - name: working tree (tracked + untracked)
+        run: python scripts/secret_scan.py --all
+      - name: full history, all branches
+        run: python scripts/secret_scan.py --history
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest -p no:cacheprovider -q tests/contracts
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[dev,advisory]"
+      - run: >
+          python -m pytest -p no:cacheprovider -q tests
+          --ignore=tests/invariants --ignore=tests/security --ignore=tests/integration
+
+  invariants:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[dev,advisory]"
+      # A red here is either a real Hard Rule violation (blocks every merge) or a
+      # "pending" invariant whose subject still raises NotImplementedError. Both are
+      # meant to be seen. Never edit an invariant to make it green.
+      - run: python -m pytest -p no:cacheprovider -q -ra tests/invariants
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[dev,advisory]"
+      - name: pytest tests/security
+        run: |
+          if [ -d tests/security ]; then
+            python -m pytest -p no:cacheprovider -q tests/security
+          else
+            echo "::warning title=tests/security absent::L5 has not created tests/security yet; nothing was run."
+          fi
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[dev,advisory]"
+      - name: pytest tests/integration
+        run: |
+          if [ -d tests/integration ]; then
+            python -m pytest -p no:cacheprovider -q tests/integration
+          else
+            echo "::warning title=tests/integration absent::L6 has not created tests/integration yet; nothing was run."
+          fi
+
+  postgres-ddl:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mizan
+          # Ephemeral: this password protects a service container that exists only for the
+          # duration of this job, on the runner's loopback interface. It is not a secret.
+          POSTGRES_PASSWORD: mizan-ci
+          POSTGRES_DB: mizan
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mizan -d mizan"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: mizan
+      PGPASSWORD: mizan-ci
+      PGDATABASE: mizan
+    steps:
+      - uses: actions/checkout@v4
+      - name: install psql
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends postgresql-client
+          psql --version
+      - name: apply init scripts (as docker-entrypoint-initdb.d would, as the bootstrap superuser)
+        run: |
+          set -euo pipefail
+          for f in infra/postgres/init/*.sql; do
+            echo "== applying $f"
+            psql -X -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: apply init scripts a second time (idempotency)
+        run: |
+          set -euo pipefail
+          for f in infra/postgres/init/*.sql; do
+            psql -X -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: prove append-only, chain linking, paper-only and tenant isolation
+        run: bash infra/postgres/verify/prove_append_only.sh

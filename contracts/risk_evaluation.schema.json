@@ -1,0 +1,392 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mizan.dev/contracts/1.0.0/risk_evaluation.schema.json",
+  "title": "RiskEvaluation",
+  "description": "The deterministic verdict. Produced with no LLM in the path.",
+  "x-mizan-schema-version": "1.0.0",
+  "x-mizan-generated-from": "mizan.contracts.risk_evaluation.RiskEvaluation",
+  "$defs": {
+    "CheckResult": {
+      "additionalProperties": false,
+      "properties": {
+        "check_id": {
+          "title": "Check Id",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "severity": {
+          "enum": [
+            "blocking",
+            "warning",
+            "info"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "reason_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonCode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Threshold"
+        },
+        "actual": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Actual"
+        },
+        "data_source": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data Source"
+        },
+        "snapshot_ts": {
+          "anyOf": [
+            {
+              "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Snapshot Ts"
+        },
+        "recommended_quantity": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Recommended Quantity"
+        },
+        "detail": {
+          "maxLength": 4000,
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "check_id",
+        "passed",
+        "severity",
+        "reason_code",
+        "threshold",
+        "actual",
+        "data_source",
+        "snapshot_ts",
+        "recommended_quantity",
+        "detail"
+      ],
+      "title": "CheckResult",
+      "type": "object"
+    },
+    "PolicyRef": {
+      "additionalProperties": false,
+      "properties": {
+        "policy_id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+          "title": "Policy Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+          "title": "Version",
+          "type": "string"
+        },
+        "hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "policy_id",
+        "version",
+        "hash"
+      ],
+      "title": "PolicyRef",
+      "type": "object"
+    },
+    "ReasonCode": {
+      "description": "Machine-readable reason codes from contracts/reason_codes.json (version REASON_CODE_VERSION).",
+      "enum": [
+        "ABSORBING_BARRIER_BREACHED",
+        "ADVISORY_CLAMPED",
+        "ADVISORY_INVALID_OUTPUT",
+        "ADVISORY_REDUCE",
+        "ADVISORY_REJECT",
+        "ADVISORY_SKIPPED",
+        "ADVISORY_UNAVAILABLE",
+        "ADV_PARTICIPATION_EXCEEDED",
+        "AGENT_DAILY_NOTIONAL_EXCEEDED",
+        "AGENT_DAILY_ORDERS_EXCEEDED",
+        "AGENT_OPEN_POSITIONS_EXCEEDED",
+        "AGENT_OUTSIDE_ACTIVE_HOURS",
+        "AGENT_STATE_MISSING",
+        "AGENT_SYMBOL_NOT_ALLOWED",
+        "AGGREGATE_EXPOSURE_EXCEEDED",
+        "AGGREGATE_STATE_MISSING",
+        "ASSET_NOT_TRADABLE",
+        "ASSIGNMENT_RISK",
+        "AUTHORIZATION_ALREADY_USED",
+        "AUTHORIZATION_EXPIRED",
+        "AUTHORIZATION_INVALID",
+        "AUTHORIZATION_NOT_YET_VALID",
+        "AUTHORIZATION_SCOPE_MISMATCH",
+        "BOOK_LIQUIDATION_TIME_EXCEEDED",
+        "BROKER_REJECTED",
+        "BROKER_UNAVAILABLE",
+        "BUYING_POWER_MISSING",
+        "BUYING_POWER_UTILIZATION_EXCEEDED",
+        "CALENDAR_MISSING",
+        "CAPITAL_THRESHOLD_EXCEEDED",
+        "CHAIN_INTEGRITY_FAILED",
+        "CHECK_NOT_IMPLEMENTED",
+        "CONCENTRATION_LIMIT_EXCEEDED",
+        "CONFIDENCE_HAIRCUT_APPLIED",
+        "CONSECUTIVE_LOSS_REVIEW",
+        "CORRELATED_INTENT_DETECTED",
+        "CROWDING_THRESHOLD_EXCEEDED",
+        "DAYS_UNDER_WATER_EXCEEDED",
+        "DRAWDOWN_LIMIT_BREACHED",
+        "DTE_ABOVE_MAXIMUM",
+        "DTE_BELOW_MINIMUM",
+        "DUPLICATE_ORDER",
+        "EARNINGS_BLACKOUT",
+        "ENGINE_DEGRADED",
+        "ENGINE_VERSION_MISMATCH",
+        "ERRONEOUS_PRICE_DEVIATION",
+        "ERRONEOUS_QUANTITY_DEVIATION",
+        "ESTIMATED_IMPACT_EXCEEDED",
+        "EXECUTION_DISABLED",
+        "EXPECTED_SHORTFALL_EXCEEDED",
+        "FACTOR_EXPOSURE_EXCEEDED",
+        "GREEKS_MISSING",
+        "HARD_REJECTION_UPHELD",
+        "IDEMPOTENT_ORDER_EXISTS",
+        "INSUFFICIENT_BUYING_POWER",
+        "INVALIDATION_MISSING",
+        "INVALID_PRICE",
+        "INVALID_QUANTITY",
+        "KILL_SWITCH_ACTIVE",
+        "LEG_LIMIT_EXCEEDED",
+        "LIQUIDITY_DATA_MISSING",
+        "LIVE_TRADING_FORBIDDEN",
+        "MACRO_EVENT_BLACKOUT",
+        "MARKET_CLOSED",
+        "MARKET_DATA_MISSING",
+        "MARKET_DATA_STALE",
+        "MODEL_PROVIDER_CONCENTRATION_EXCEEDED",
+        "NAKED_SHORT_NOT_PERMITTED",
+        "OPTIONS_DELTA_LIMIT_EXCEEDED",
+        "OPTIONS_GAMMA_LIMIT_EXCEEDED",
+        "OPTIONS_SHORT_GAMMA_LIMIT_EXCEEDED",
+        "OPTIONS_SHORT_VEGA_LIMIT_EXCEEDED",
+        "OPTIONS_VEGA_LIMIT_EXCEEDED",
+        "OPTION_OPEN_INTEREST_TOO_LOW",
+        "OPTION_SPREAD_TOO_WIDE",
+        "OVERNIGHT_EXPOSURE_EXCEEDED",
+        "PATH_STATE_MISSING",
+        "PIN_RISK",
+        "POLICY_HASH_MISMATCH",
+        "POLICY_INVALID",
+        "POLICY_NOT_FOUND",
+        "PORTFOLIO_STATE_MISSING",
+        "PORTFOLIO_STATE_STALE",
+        "POSITION_LIMIT_EXCEEDED",
+        "PRICE_MISSING",
+        "PROPOSAL_EXPIRED",
+        "REAUTHORIZATION_REQUIRED",
+        "RECORD_NOT_FOUND",
+        "RESPONSE_LEVEL_ESCALATED",
+        "RESPONSE_LEVEL_HALT",
+        "RESPONSE_LEVEL_RESTRICTS_NEW_RISK",
+        "RESTRICTED_STRATEGY",
+        "RESTRICTED_SYMBOL",
+        "REWARD_RISK_BELOW_MINIMUM",
+        "RISK_PER_TRADE_EXCEEDED",
+        "SCHEMA_INVALID",
+        "SECTOR_CONCENTRATION_EXCEEDED",
+        "SECTOR_DATA_MISSING",
+        "SESSION_WINDOW_RESTRICTED",
+        "SIGNAL_SOURCE_CONCENTRATION_EXCEEDED",
+        "SIZE_REDUCED_TO_POLICY_CAP",
+        "SIZE_SCALED_BY_DRAWDOWN",
+        "STATE_BINDING_MISMATCH",
+        "STRESS_LOSS_EXCEEDED",
+        "STRUCTURE_INVALID",
+        "TENANT_ACCESS_DENIED",
+        "TENANT_MISMATCH",
+        "TOCTOU_STATE_CHANGED",
+        "UNDEFINED_RISK_REQUIRES_APPROVAL",
+        "UNKNOWN_FIELD",
+        "UNSUPPORTED_ASSET_CLASS",
+        "UNSUPPORTED_STRATEGY"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "evaluation_id": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Evaluation Id",
+      "type": "string"
+    },
+    "proposal_id": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Proposal Id",
+      "type": "string"
+    },
+    "context_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Context Id",
+      "type": "string"
+    },
+    "tenant_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "policy": {
+      "$ref": "#/$defs/PolicyRef"
+    },
+    "engine_version": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Engine Version",
+      "type": "string"
+    },
+    "evaluated_at": {
+      "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+      "title": "Evaluated At",
+      "type": "string"
+    },
+    "verdict": {
+      "enum": [
+        "PASS",
+        "REDUCE",
+        "REJECT"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    },
+    "reason_codes": {
+      "items": {
+        "$ref": "#/$defs/ReasonCode"
+      },
+      "title": "Reason Codes",
+      "type": "array"
+    },
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/CheckResult"
+      },
+      "minItems": 1,
+      "title": "Checks",
+      "type": "array"
+    },
+    "original_quantity": {
+      "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+      "title": "Original Quantity",
+      "type": "string"
+    },
+    "recommended_quantity": {
+      "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+      "title": "Recommended Quantity",
+      "type": "string"
+    },
+    "original_notional": {
+      "anyOf": [
+        {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Original Notional"
+    },
+    "recommended_notional": {
+      "anyOf": [
+        {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Recommended Notional"
+    },
+    "data_complete": {
+      "title": "Data Complete",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema_version",
+    "evaluation_id",
+    "proposal_id",
+    "context_id",
+    "tenant_id",
+    "policy",
+    "engine_version",
+    "evaluated_at",
+    "verdict",
+    "reason_codes",
+    "checks",
+    "original_quantity",
+    "recommended_quantity",
+    "original_notional",
+    "recommended_notional",
+    "data_complete"
+  ],
+  "type": "object"
+}

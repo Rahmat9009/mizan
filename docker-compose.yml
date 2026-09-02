@@ -1,0 +1,51 @@
+# Mizan local infrastructure — Postgres only, for now.
+#
+#   cp .env.example .env            # then set POSTGRES_PASSWORD (required; no default, ever)
+#   docker compose up -d --wait
+#   psql "postgresql://mizan@127.0.0.1:5432/mizan"   # prompts for the password
+#
+# What this file guarantees:
+#   * POSTGRES_PASSWORD has no default: compose refuses to start without it.
+#   * The port is bound to 127.0.0.1 only — never 0.0.0.0.
+#   * infra/postgres/init/*.sql is mounted READ-ONLY and runs once, on first init, as the
+#     bootstrap superuser. It creates the mizan_admin role/schema and the per-tenant
+#     provisioning function. The application never connects as the superuser.
+#   * scram-sha-256 for every password auth path; data checksums on.
+#
+# TODO (W13 / Kubernetes): TLS. This compose Postgres does NOT terminate TLS. We do not
+# fake it here (no self-signed cert baked into an image, no `ssl=off` command override
+# pretending otherwise). Production runs behind the cluster's certificate issuer with
+# `sslmode=verify-full` in DATABASE_URL; locally the loopback-only bind is the boundary.
+#
+# There is no application service yet: the SQLite per-tenant ledger is the tested
+# persistence for Sprint 1. This DB is the B3 (per-tenant schema) foundation.
+
+name: mizan
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mizan-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mizan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required - set it in .env (gitignored); it is never defaulted}
+      POSTGRES_DB: ${POSTGRES_DB:-mizan}
+      POSTGRES_INITDB_ARGS: "--data-checksums --auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - mizan-postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mizan} -d ${POSTGRES_DB:-mizan}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 256mb
+
+volumes:
+  mizan-postgres-data:

@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mizan.dev/contracts/1.0.0/trade_proposal.schema.json",
+  "title": "TradeProposal",
+  "description": "What an agent proposes. Never what it is permitted to do.",
+  "x-mizan-schema-version": "1.0.0",
+  "x-mizan-generated-from": "mizan.contracts.trade_proposal.TradeProposal",
+  "$defs": {
+    "AgentIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "agent_type": {
+          "enum": [
+            "trader",
+            "analyst",
+            "portfolio_manager"
+          ],
+          "title": "Agent Type",
+          "type": "string"
+        },
+        "agent_version": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Agent Version",
+          "type": "string"
+        },
+        "framework": {
+          "enum": [
+            "tradingagents",
+            "ai-hedge-fund",
+            "custom"
+          ],
+          "title": "Framework",
+          "type": "string"
+        }
+      },
+      "required": [
+        "agent_id",
+        "agent_type",
+        "agent_version",
+        "framework"
+      ],
+      "title": "AgentIdentity",
+      "type": "object"
+    },
+    "Invalidation": {
+      "additionalProperties": false,
+      "description": "The price level at which the thesis is wrong. Agent-supplied; the policy decides whether it is required.",
+      "properties": {
+        "level": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Level",
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "below",
+            "above"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target"
+        }
+      },
+      "required": [
+        "level",
+        "direction"
+      ],
+      "title": "Invalidation",
+      "type": "object"
+    },
+    "Leg": {
+      "additionalProperties": false,
+      "properties": {
+        "leg_index": {
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Leg Index",
+          "type": "integer"
+        },
+        "side": {
+          "enum": [
+            "buy",
+            "sell"
+          ],
+          "title": "Side",
+          "type": "string"
+        },
+        "contract_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "call",
+                "put"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Contract Type"
+        },
+        "strike": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Strike"
+        },
+        "expiry": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Expiry"
+        },
+        "quantity": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Quantity",
+          "type": "string"
+        },
+        "limit_price": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Limit Price"
+        },
+        "order_type": {
+          "enum": [
+            "limit",
+            "market"
+          ],
+          "title": "Order Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "leg_index",
+        "side",
+        "contract_type",
+        "strike",
+        "expiry",
+        "quantity",
+        "limit_price",
+        "order_type"
+      ],
+      "title": "Leg",
+      "type": "object"
+    },
+    "ModelIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "prompt_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Prompt Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "model",
+        "version",
+        "prompt_hash"
+      ],
+      "title": "ModelIdentity",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "proposal_id": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Proposal Id",
+      "type": "string"
+    },
+    "agent": {
+      "$ref": "#/$defs/AgentIdentity"
+    },
+    "model": {
+      "$ref": "#/$defs/ModelIdentity"
+    },
+    "created_at": {
+      "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+      "title": "Created At",
+      "type": "string"
+    },
+    "expires_at": {
+      "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "intent": {
+      "enum": [
+        "open",
+        "close",
+        "adjust"
+      ],
+      "title": "Intent",
+      "type": "string"
+    },
+    "symbol": {
+      "pattern": "^[A-Z][A-Z0-9.-]{0,15}$",
+      "title": "Symbol",
+      "type": "string"
+    },
+    "asset_class": {
+      "enum": [
+        "equity",
+        "equity_option"
+      ],
+      "title": "Asset Class",
+      "type": "string"
+    },
+    "strategy": {
+      "enum": [
+        "long_equity",
+        "short_equity",
+        "long_call",
+        "long_put",
+        "bull_call_spread",
+        "bear_put_spread",
+        "bull_put_spread",
+        "bear_call_spread",
+        "iron_condor",
+        "custom"
+      ],
+      "title": "Strategy",
+      "type": "string"
+    },
+    "legs": {
+      "items": {
+        "$ref": "#/$defs/Leg"
+      },
+      "maxItems": 4,
+      "minItems": 1,
+      "title": "Legs",
+      "type": "array"
+    },
+    "reasoning": {
+      "default": "",
+      "maxLength": 20000,
+      "title": "Reasoning",
+      "type": "string"
+    },
+    "market_snapshot_ref": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Market Snapshot Ref",
+      "type": "string"
+    },
+    "portfolio_snapshot_ref": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Portfolio Snapshot Ref",
+      "type": "string"
+    },
+    "confidence": {
+      "anyOf": [
+        {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Confidence"
+    },
+    "signal_sources": {
+      "items": {
+        "maxLength": 256,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 16,
+      "title": "Signal Sources",
+      "type": "array"
+    },
+    "invalidation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Invalidation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "schema_version",
+    "proposal_id",
+    "agent",
+    "model",
+    "created_at",
+    "expires_at",
+    "intent",
+    "symbol",
+    "asset_class",
+    "strategy",
+    "legs",
+    "market_snapshot_ref",
+    "portfolio_snapshot_ref"
+  ],
+  "type": "object"
+}

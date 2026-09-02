@@ -1,14 +1,43 @@
+# --- secrets and local environment (never commit) ---
 .env
+.env.*
+!.env.example
+
+# --- virtual environments ---
 .venv/
 .venv-new/
 .venv-broken-*/
+venv/
+
+# --- python build / caches ---
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
 .coverage
+coverage.xml
 htmlcov/
-audit*.json
+dist/
+build/
+*.egg-info/
+
+# --- git worktrees used by parallel lanes ---
+.worktrees/
+
+# --- runtime state: ledgers, databases, audit dumps ---
 data/
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+audit*.json
+
+# --- editor / OS noise ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
