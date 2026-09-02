@@ -17,9 +17,11 @@ import hashlib
 import importlib.metadata
 import json
 import platform
+import re
 import secrets
 import threading
 import time
+import unicodedata
 import uuid
 from collections.abc import Iterable, Mapping
 from decimal import ROUND_HALF_EVEN, Context, Decimal, DivisionByZero, InvalidOperation, Overflow
@@ -44,16 +46,72 @@ SENSITIVE_KEY_PATTERNS: tuple[str, ...] = (
     "token",
     "password",
     "passwd",
+    "pwd",
+    "passphrase",
     "authorization",
+    "www_authenticate",
+    "bearer",
     "credential",
     "credentials",
     "header",
     "headers",
     "cookie",
+    "session",
+    "session_id",
+    "sessionid",
+    "jwt",
+    "signature",
     "private_key",
     "connection_string",
     "dsn",
+    "database_url",
+    "db_url",
+    "account_id",
+    "account_number",
+    "ssn",
 )
+# Value shapes that are credentials wherever they appear, including inside free text under a harmless key.
+# Key-based redaction cannot see these: every contract model is ``extra="forbid"``, so the only way a
+# credential reaches a record at all is pasted into a free-text field (``reasoning``, a broker message).
+# Each pattern replaces only the span it matched, so the surrounding prose stays auditable.
+SENSITIVE_VALUE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{12,}", re.IGNORECASE),
+    re.compile(r"\bsk-ant-[A-Za-z0-9_-]{16,}"),
+    re.compile(r"\bsk-[A-Za-z0-9_-]{20,}"),
+    re.compile(r"\brc_[A-Za-z0-9]{20,}"),
+    re.compile(r"\b(?:PK|AK)[A-Z0-9]{16,}\b"),
+    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
+    re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}\b"),
+    re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}\b"),
+    re.compile(r"-----BEGIN[A-Z ]*PRIVATE KEY-----"),
+    re.compile(r"(?i)\b[a-z][a-z0-9+.-]*://[^\s:/@]+:[^\s:/@]+@"),
+    re.compile(r"(?i)[?&](?:api_?key|token|secret|password|passwd)=[^&\s\"']+"),
+)
+# Typed decimal maps (``exposure_by_signal_source``, ``exposure_by_model_provider``, ``factor_exposures``)
+# are keyed by DATA, not by field name, and a signal source may legitimately be called "vendor:secret-feed".
+# Redacting its value would write "[REDACTED]" where a DecimalStr belongs and make the record unbuildable.
+#
+# The exemption is deliberately narrow: a numeric value survives only under a key that carries a namespace
+# separator, which is how those data keys are written ("vendor:polygon", "model:featherless/qwen3"). A plain
+# field name never has one, so ``account_number`` and ``ssn`` are still redacted even though they are digits.
+_NUMERIC_VALUE = re.compile(r"^-?\d+(?:\.\d+)?$")
+_DATA_KEY = re.compile(r"[:/]")
+# Keys whose value is a bag of headers or cookies. These are replaced WHOLESALE rather than
+# recursed into: the individual header names are themselves revealing, and there is no structure
+# inside worth preserving. This is the one place a sensitive key still swallows its whole value -
+# and it is why `Policy.authorization` (a contract sub-section, not a header bag) is not in the list.
+_COLLECTION_KEYS: frozenset[str] = frozenset({
+    "header", "headers", "request_header", "request_headers", "response_header", "response_headers",
+    "http_header", "http_headers", "cookie", "cookies", "set_cookie", "raw_headers",
+})
+
+
+def _is_collection_key(key: Any) -> bool:
+    """True when a key names a header/cookie bag, whose value is replaced whole."""
+    if not isinstance(key, str):
+        return False
+    return "_".join(_key_tokens(key)) in _COLLECTION_KEYS
 # Contract field names that would otherwise match ``authorization`` but carry no secret: an authorization hash
 # and the timestamp at which an authorization was validated. The ``authorization`` *object* itself is a contract
 # object (it carries ``schema_version``) and is recursed into rather than replaced.
@@ -253,16 +311,32 @@ def uuid7() -> str:
 # --------------------------------------------------------------------------------------------------------------------
 
 _CAMEL_BOUNDARY = ("abcdefghijklmnopqrstuvwxyz0123456789", "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+# Cyrillic and Greek letters that render identically to ASCII. NFKC leaves them alone because they
+# are genuinely different letters, not compatibility forms - so a key spelled with them looks exactly
+# like "api_key" to a human reviewer and nothing like it to a matcher. Mapped explicitly.
+_HOMOGLYPHS = str.maketrans({
+    "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "у": "y",
+    "х": "x", "і": "i", "ѕ": "s", "һ": "h", "ԁ": "d", "ԛ": "q",
+    "Α": "A", "Β": "B", "Ε": "E", "Ζ": "Z", "Η": "H", "Ι": "I",
+    "Κ": "K", "Μ": "M", "Ν": "N", "Ο": "O", "Ρ": "P", "Τ": "T",
+    "Υ": "Y", "Χ": "X", "ο": "o", "ρ": "p", "υ": "u",
+})
 
 
 def _key_tokens(key: str) -> list[str]:
     """``"X-Api-Key"`` -> ``["x", "api", "key"]``; ``"accessToken"`` -> ``["access", "token"]``."""
+    # NFKC folds fullwidth and other compatibility forms onto ASCII, so "ａpi_key" is seen as "api_key".
+    # It does NOT fold Cyrillic homoglyphs (Cyrillic "а" is a distinct letter, not a compatibility form),
+    # so those are mapped explicitly below - a key nobody can read as anything but "api_key" must not slip
+    # through because two of its letters came from another alphabet.
+    key = unicodedata.normalize("NFKC", key)
+    key = key.translate(_HOMOGLYPHS)
     pieces: list[str] = []
     for index, char in enumerate(key):
         if index and char in _CAMEL_BOUNDARY[1] and key[index - 1] in _CAMEL_BOUNDARY[0]:
             pieces.append("_")
         pieces.append(char)
-    normalised = "".join(pieces).lower()
+    normalised = "".join(pieces).casefold()
     for separator in ("-", " ", ".", ":", "/"):
         normalised = normalised.replace(separator, "_")
     return [token for token in normalised.split("_") if token]
@@ -294,17 +368,68 @@ def _is_contract_object(value: Any) -> bool:
     return isinstance(value, Mapping) and "schema_version" in value
 
 
-def _redact(obj: Any) -> Any:
+def _numeric_data_value(key: Any, value: Any, *, inherited: bool) -> bool:
+    """True when a numeric value under a sensitive key is data rather than a credential.
+
+    Only namespaced data keys qualify ("vendor:secret-feed" in a decimal map). A plain field name never
+    carries a separator, so ``account_number`` and ``ssn`` stay redacted despite being digits.
+    """
+    if isinstance(value, bool):
+        return False
+    if not (isinstance(value, int) or (isinstance(value, str) and _NUMERIC_VALUE.fullmatch(value))):
+        return False
+    if inherited:
+        return True
+    return isinstance(key, str) and bool(_DATA_KEY.search(key))
+
+
+def _scrub_value(value: str) -> str:
+    """Replace credential-shaped spans inside a string, leaving the surrounding text intact."""
+    for pattern in SENSITIVE_VALUE_PATTERNS:
+        value = pattern.sub(REDACTED, value)
+    return value
+
+
+def _redact(obj: Any, *, inherited: bool = False) -> Any:
+    """Redact ``obj``. ``inherited`` means an enclosing key was sensitive, so scalars here are too.
+
+    Three cases need distinguishing, and conflating any two of them causes a real bug:
+
+    * a sensitive key holding a SCALAR is a credential -> replace it (unless it is a number);
+    * a sensitive key holding a CONTRACT OBJECT is a legitimate nested contract (the ``authorization``
+      field of a DecisionRecord is an ExecutionAuthorization) -> recurse normally, no inheritance;
+    * a sensitive key holding any OTHER structure is either a credentials blob or a contract sub-section
+      that merely shares a name (``Policy.authorization`` is ``{"ttl_seconds": 15}``) -> recurse WITH
+      inheritance, so strings inside are redacted while the structure and its numbers survive.
+
+    Replacing that third case wholesale is what destroyed ``Policy.authorization``, breaking the policy
+    hash and making the record unbuildable (ledger/requests.md REQ-3).
+    """
     if isinstance(obj, Mapping):
         out: dict[Any, Any] = {}
         for key, value in obj.items():
-            if isinstance(key, str) and is_sensitive_key(key) and value is not None and not _is_contract_object(value):
+            sensitive = inherited or (isinstance(key, str) and is_sensitive_key(key))
+            if not sensitive or value is None:
+                out[key] = _redact(value, inherited=False)
+            elif _is_collection_key(key):
                 out[key] = REDACTED
+            elif _is_contract_object(value):
+                out[key] = _redact(value, inherited=False)
+            elif isinstance(value, (Mapping, list, tuple)):
+                out[key] = _redact(value, inherited=True)
+            elif _numeric_data_value(key, value, inherited=inherited):
+                out[key] = value
             else:
-                out[key] = _redact(value)
+                out[key] = REDACTED
         return out
     if isinstance(obj, (list, tuple)):
-        return [_redact(item) for item in obj]
+        return [_redact(item, inherited=inherited) for item in obj]
+    if inherited and isinstance(obj, str) and not _NUMERIC_VALUE.fullmatch(obj):
+        return REDACTED
+    if inherited and isinstance(obj, str):
+        return obj
+    if isinstance(obj, str):
+        return _scrub_value(obj)
     return obj
 
 
