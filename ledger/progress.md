@@ -8,3 +8,10 @@ Format: `[UTC timestamp] sprint | lane | task | DoD met (y/n) | notes`
 - [2026-09-02T14:43:30Z] S1 | L0-B | Dispatched: tests/invariants (17 + #18 semantic_layer_disabled_produces_identical_verdict), conftest INVARIANT STATUS summary, README | pending | Addendum 1 sent mid-task.
 - [2026-09-02T14:43:30Z] S1 | L0-C | Dispatched: pyproject, Makefile, CI workflow (incl. postgres-ddl job), secret scanner + git hook, docker-compose + per-tenant Postgres init SQL, ADRs 0000–0006, CONTRIBUTING, tests/infra | pending | Addendum 1 sent mid-task.
 - [2026-09-02T14:43:30Z] S1 | L5 | Dispatched: Sweep 1 (secrets incl. git history) + Sweep 2 (sensitive data flow, legacy redaction tests) + THREAT-MODEL.md skeleton | pending | Flag-only authority.
+
+## Sprint 1 checkpoint — [2026-09-02T22:57:44Z]
+- [2026-09-02T22:57:44Z] S1 | ORCH | Four L0/L5 agents terminated early on a session rate limit. Orchestrator completed the gaps directly: 12 lane stubs, schema generator, 9 JSON Schemas, 2 real bug fixes | y | See learnings.
+- [2026-09-02T22:57:44Z] S1 | L0 | contracts/ + mizan/contracts + tests/fixtures + tests/invariants (18) + CI/infra scaffolding | y | Commit 9eebf24.
+- [2026-09-02T22:57:44Z] S1 | ORCH | **CONTRACTS FROZEN at 9eebf24.** contracts/*.schema.json, contracts/reason_codes.json, contracts/error_codes.json and tests/invariants/ are READ-ONLY from now on. Changes require a HALT entry in ledger/escalations.md and Orchestrator approval. | y | Announced per §10 step 9.
+- [2026-09-02T22:57:44Z] S1 | GATE | Invariants: PASS=2 (15 no-binary-float, 16 no-live-trading), PENDING-IMPL=16, BLOCKING=0. Legacy 354 passed/1 skipped. Security 63 passed/41 xfail. Secret scan clean on tree and history. | y | Green checkpoint; Sprint 2 dispatched.
+- [2026-09-02T23:05:43Z] S2 | ORCH(L0 gap) | contracts/CANONICAL.md (hash derivations + a standalone verifier proven to accept a good chain, catch tampering at record 3 and catch deletion at record 4), contracts/README.md, tests/contracts (42 tests) | y | Freeze guard now active: regenerating schemas must produce no diff.
