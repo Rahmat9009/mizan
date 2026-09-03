@@ -44,9 +44,9 @@ MODEL = ModelIdentity(
 
 def market_snapshot() -> MarketSnapshot:
     """What the broker's data feed would return: a two-sided quote and an option chain entry."""
-    return MarketSnapshot.model_validate(
-        {
-            "snapshot_id": "demo-mkt-1",
+    # snapshot_id is content-derived (REQ-34); build() computes it.
+    return MarketSnapshot.build(
+        **{
             "as_of": DEMO_AS_OF,
             "quotes": {
                 "AAPL": {

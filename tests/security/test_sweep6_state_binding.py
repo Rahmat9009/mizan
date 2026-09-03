@@ -276,7 +276,10 @@ def test_f29_the_price_move_is_still_re_evaluated_even_though_it_is_not_reported
     payload["quotes"][chain["proposal"].symbol]["price"] = "1.0"
     payload["quotes"][chain["proposal"].symbol]["bid"] = "0.99"
     payload["quotes"][chain["proposal"].symbol]["ask"] = "1.01"
-    chain["broker"].set_market_snapshot(MarketSnapshot.model_validate(payload))
+    # REQ-34: snapshot_id is content-derived, so a mutated payload must be REBUILT rather than
+    # revalidated with its old id - which is precisely the staleness F-29 was about.
+    payload.pop("snapshot_id", None)
+    chain["broker"].set_market_snapshot(MarketSnapshot.build(**payload))
     result = a_gate(chain).execute(chain["auth"], chain["proposal"], chain["decision"])
     assert result.status == "BLOCKED"
     assert "REAUTHORIZATION_REQUIRED" in codes(result)

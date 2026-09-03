@@ -7,11 +7,12 @@ function and replay reproduces them exactly.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, ValidationInfo, model_validator
 
-from mizan.contracts._base import ContractModel
+from mizan.contracts._base import SKIP_HASH_CHECK, ContractModel, hash_check_skipped
+from mizan.contracts.canonical import ZERO_HASH, market_snapshot_id_for
 from mizan.contracts.trade_proposal import AssetClass, Side
 from mizan.contracts.types import (
     AgentId,
@@ -70,14 +71,37 @@ class MarketSnapshot(ContractModel):
     source: NonEmptyStr
 
     @model_validator(mode="after")
-    def _keys_match(self) -> MarketSnapshot:
+    def _keys_match(self, info: ValidationInfo) -> MarketSnapshot:
         for key, quote in self.quotes.items():
             if quote.symbol != key:
                 raise ValueError(f"quotes[{key!r}] carries symbol {quote.symbol!r}")
         for key, quote in self.option_quotes.items():
             if quote.occ_symbol != key:
                 raise ValueError(f"option_quotes[{key!r}] carries occ_symbol {quote.occ_symbol!r}")
+        # REQ-34: identity is content. Without this a caller could keep an id while the quotes moved,
+        # and the execution gate - which compares the market half of a BoundState by id - would report
+        # state_changed=False for a market that had changed underneath it.
+        if not hash_check_skipped(info) and self.snapshot_id != market_snapshot_id_for(self):
+            raise ValueError("snapshot_id does not match the canonical hash of the snapshot content")
         return self
+
+    @classmethod
+    def build(cls, **fields: Any) -> MarketSnapshot:
+        """Construct a snapshot, deriving ``snapshot_id`` from the normalised content.
+
+        Deliberately not ``build_hashed``: that helper injects ``schema_version``, which every
+        TOP-LEVEL contract object declares and this nested one forbids. Same two-pass shape - validate
+        once to normalise every DecimalStr and Rfc3339, hash the normalised dump, validate again for
+        real - so the id is computed over exactly the bytes that will be stored.
+        """
+        if "snapshot_id" in fields:
+            raise ValueError("MarketSnapshot.build() computes snapshot_id; do not pass it")
+        provisional = cls.model_validate(
+            {**fields, "snapshot_id": ZERO_HASH}, context={SKIP_HASH_CHECK: True}
+        )
+        normalised = provisional.model_dump(mode="json")
+        normalised["snapshot_id"] = market_snapshot_id_for(normalised)
+        return cls.model_validate(normalised)
 
 
 class Position(ContractModel):

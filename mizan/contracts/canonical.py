@@ -215,6 +215,19 @@ def authorization_hash_for(payload: Mapping[str, Any] | BaseModel) -> str:
     return _hash_without(payload, "authorization_hash")
 
 
+def market_snapshot_id_for(payload: Mapping[str, Any] | BaseModel) -> str:
+    """``sha256_hex(canonical_json(snapshot without "snapshot_id"))``.
+
+    Identity IS content for a market snapshot (REQ-34). Before this, ``snapshot_id`` was free-form and
+    the execution gate compared the market half of a BoundState by that id while comparing the portfolio
+    half by content hash - so quotes could move under an unchanged id and the gate would report
+    ``state_changed=False``. Deriving the id from the content makes the existing identity comparison
+    sound without changing the shape of any frozen contract, and it also removes the production failure
+    from the other direction, where a microsecond timestamp made every id unique and the flag always True.
+    """
+    return _hash_without(payload, "snapshot_id")
+
+
 def evaluation_id_for(payload: Mapping[str, Any] | BaseModel) -> str:
     """``sha256_hex(canonical_json(evaluation without "evaluation_id"))``."""
     return _hash_without(payload, "evaluation_id")
@@ -658,6 +671,7 @@ __all__ = [
     "authorization_hash_for",
     "canonical_json",
     "evaluation_id_for",
+    "market_snapshot_id_for",
     "idempotency_key_for",
     "is_sensitive_key",
     "library_versions",

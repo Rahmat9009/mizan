@@ -209,9 +209,11 @@ def test_a_market_snapshot_the_caller_owns_is_never_consulted(build_pipeline, pr
     """
     from mizan.adapters import MockBroker
 
-    other = make_market_snapshot(snapshot_id="mkt-from-the-broker-only")
+    # snapshot_id is content-derived (REQ-34), so a distinct snapshot is made by distinct CONTENT.
+    other = make_market_snapshot(source="broker-only:feed")
     broker = MockBroker(portfolio_snapshot=make_portfolio_snapshot(), market_snapshot=other)
     record = build_pipeline(broker=broker).evaluate(proposal)
 
-    assert record.risk_context.market_snapshot.snapshot_id == "mkt-from-the-broker-only"
+    assert record.risk_context.market_snapshot.snapshot_id == other.snapshot_id
+    assert record.risk_context.market_snapshot.source == "broker-only:feed"
     assert record.proposal.market_snapshot_ref != record.risk_context.market_snapshot.snapshot_id

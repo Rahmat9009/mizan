@@ -105,7 +105,6 @@ def policy_for(tenant_id: str = TENANT_A, *, ttl_seconds: int = 15, strict: bool
 def market_snapshot(**overrides: Any) -> MarketSnapshot:
     """What the broker's data feed returns. AAPL and MSFT are both Technology, deliberately."""
     base: dict[str, Any] = {
-        "snapshot_id": "mkt-integration-1",
         "as_of": AS_OF,
         "quotes": {
             "AAPL": {
@@ -123,7 +122,8 @@ def market_snapshot(**overrides: Any) -> MarketSnapshot:
         "sectors": {"AAPL": "Technology", "MSFT": "Technology"},
         "source": "integration",
     }
-    return MarketSnapshot.model_validate({**base, **overrides})
+    # snapshot_id is content-derived (REQ-34): identity IS content, so it is never written by hand.
+    return MarketSnapshot.build(**{**base, **overrides})
 
 
 def portfolio_snapshot(**overrides: Any) -> PortfolioSnapshot:

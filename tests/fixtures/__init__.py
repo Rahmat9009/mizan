@@ -389,7 +389,6 @@ def injection_reasoning() -> str:
 def make_market_snapshot(**overrides: Any) -> MarketSnapshot:
     as_of = format_ts(FIXED_NOW - timedelta(seconds=5))
     base: dict[str, Any] = {
-        "snapshot_id": "mkt-2026-09-02T17:39:55Z",
         "as_of": as_of,
         "quotes": {
             "AAPL": {"symbol": "AAPL", "price": AAPL_PRICE, "bid": "228.45", "ask": "228.55", "as_of": as_of, "source": "alpaca:paper:quotes", "adv": "55000000", "spread_pct": "0.0004"},
@@ -413,7 +412,8 @@ def make_market_snapshot(**overrides: Any) -> MarketSnapshot:
         "sectors": {"AAPL": "Technology", "MSFT": "Technology"},
         "source": "alpaca:paper",
     }
-    return MarketSnapshot.model_validate(_merge(base, overrides))
+    # snapshot_id is content-derived (REQ-34), so it is never passed - build() computes it.
+    return MarketSnapshot.build(**_merge(base, overrides))
 
 
 def make_portfolio_snapshot(**overrides: Any) -> PortfolioSnapshot:

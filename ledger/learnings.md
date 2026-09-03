@@ -67,3 +67,35 @@
   never pull or fetch from ci; nothing is ever authored on the mirror; if they disagree, origin wins.
   Recorded here because undocumented parallel state is exactly what caused the two-orchestrator collision
   (ESC-3) - the same mistake at repository level would be worse, because a divergent mirror looks authoritative.
+
+## Sprint 3 - M2 proven, and what the audit really found
+- **M2 IS PROVEN ON HEAD, not stale.** Commit `5dd1604`, workflow run 33705743438: `replay` green on
+  ubuntu-latest, macos-latest and windows-latest x Python 3.12 and 3.13 - x86 AND ARM - plus the
+  `all runners agree` job. 1m48s. Cross-machine decision determinism is now a permanent CI gate rather
+  than a claim. The earlier 6/6 at `6a68946` validated fingerprint `ea65e188` and was STALE by the time
+  it was quoted; `80b5d53f@5dd1604` is the one that counts. Record the SHA with any determinism claim -
+  "the matrix is green" is meaningless without one.
+- **The harness caught a real MISMATCH before a commit landed, and that is the evidence it works.** The
+  INV-25 evidence fix changed `restricted_symbol`'s check content, which changed `evaluation_id` and
+  `verdict_hash`. `determinism_fingerprint.py --check` reported MISMATCH pre-commit, naming the scenario
+  and both hashes. That was not a near-miss to be relieved about: it is the gate performing its function
+  on a legitimate engine change, exactly as it would on an illegitimate one. It has now done so twice
+  (again for REQ-34). A gate that has never fired is a gate nobody has tested.
+- **`mizan/risk/__init__.py:150` is the real defect; ESC-4 was one symptom of it.** When a check function
+  returns `None`, `_run` fabricated `passed=True` at the CONFIGURED severity with every evidence field
+  `None` and an empty detail. 17 of 36 checks have a return-None path; two of them (`restricted_symbol`,
+  `restricted_strategy`) took it on every ordinary proposal, producing **148 evidence-free BLOCKING
+  passes** across the audit battery. `duplicate_order` was simply the instance somebody happened to
+  notice. **It was found by auditing whether our own controls could FAIL, not whether they passed** -
+  the passing test suite was green throughout, because every test asked "does the control let the good
+  order through and stop the bad one", and none asked "could this control ever say no at all".
+- **REQ-34 needed two changes, and either alone would have been theatre.** Making
+  `MarketSnapshot.snapshot_id` content-derived is useless while `as_of` is the caller's `now`, because
+  the read time is then inside the hashed content and every id is unique anyway - the microsecond-
+  timestamp defect relocated rather than fixed. `as_of` now comes from the freshest quote. Verified by
+  probe, not by assumption: identical content gives an identical id, a one-cent bid move changes it, and
+  attaching a stale id to moved quotes is refused outright. F-29 closed.
+- **DEFERRED, RECORDED, NOT A FIX: kill-switch shared-state backing.** The single-worker boot refusal
+  blocks the unsafe SHAPE; it does not make the control distributed. A multi-worker deployment still
+  needs a Redis- or Postgres-backed switch declaring `shared_state = True`. Until then Mizan is a
+  single-worker product, enforced at startup rather than documented in a README nobody reads.

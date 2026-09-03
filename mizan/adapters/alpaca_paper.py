@@ -243,9 +243,21 @@ class AlpacaPaperBroker:
             option_quote = _option_quote_of(occ_symbol, raw, as_of=as_of)
             if option_quote is not None:
                 option_quotes[occ_symbol] = option_quote
-        return MarketSnapshot(
-            snapshot_id=f"alpaca-mkt-{format_ts(as_of)}",
-            as_of=format_ts(as_of),
+        # REQ-34. Two changes, and BOTH are needed or neither works.
+        #
+        # 1. snapshot_id is DERIVED from the content rather than minted from the clock. The old
+        #    f"alpaca-mkt-{now}" id made every read unique, so the execution gate - which compares the
+        #    market half of a BoundState by id - saw a state change on every single execution and
+        #    therefore told the operator nothing.
+        # 2. as_of is taken from the DATA, not from the caller's clock. `as_of` arrives here as the
+        #    context provider's `now`, so hashing it would put the read time inside the content and
+        #    every id would still be unique - the same defect, moved. The snapshot is as fresh as its
+        #    freshest quote; with no quotes at all there is nothing to be fresh, so the read time is
+        #    the honest fallback.
+        observed = [q.as_of for q in quotes.values()] + [q.as_of for q in option_quotes.values()]
+        snapshot_as_of = max(observed) if observed else format_ts(as_of)
+        return MarketSnapshot.build(
+            as_of=snapshot_as_of,
             quotes=quotes,
             option_quotes=option_quotes,
             sectors={},
