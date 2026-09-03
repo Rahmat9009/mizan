@@ -52,3 +52,4 @@ Thumbs.db
 !/evidence/live-ledger/*.sqlite
 !/evidence/pack/
 !/evidence/demo-transcript.txt
+!/evidence/ev-backtest/

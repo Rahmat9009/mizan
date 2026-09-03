@@ -181,7 +181,51 @@ Both halves are now fixed, and neither fix loosens a check:
   behaviour change, or publish a new version. Re-pinning an existing one rewrites what every record
   already written under it was promised, and the test says so where someone would be tempted.
 
-## 3. What is actually enforced
+## 3. Does the gate refuse the right trades? We tested it on four months of history
+
+A gate that refuses trades is only worth having if the trades it refuses were worse than the ones it
+allowed. That is testable, so it was tested - on **602 SPY put credit spreads across 18 weekly
+expiries**, every one a contract that has already expired, priced from the option bars printed that
+day and settled against SPY's close on its expiry date. Each candidate went through the real gate,
+`risk.evaluate` then `governor.govern`, with no backtest-only branch anywhere in the path.
+
+```bash
+python scripts/backtest_ev_gate.py --weeks 18    # evidence/ev-backtest/REPORT.md
+```
+
+The strongest result is the one that does not depend on where the thresholds were set. Group all 602
+candidates by credit-to-width and ignore the verdict entirely:
+
+| credit-to-width | | candidates | win rate | mean/spread | worst |
+|---|---|---|---|---|---|
+| 0.00 - 0.05 | below floor | 55 | 98.2% | +7.24 | -481.00 |
+| 0.05 - 0.10 | below floor | 98 | 90.8% | +0.58 | -472.00 |
+| 0.10 - 0.15 | below floor | 105 | 83.8% | **-5.07** | -450.00 |
+| 0.15 - 0.20 | below floor | 119 | 82.4% | +8.50 | -425.00 |
+| 0.20 - 0.30 | **above floor** | 194 | 80.4% | +26.22 | -399.00 |
+| 0.30 - 1.00 | **above floor** | 31 | 80.6% | +93.81 | -342.00 |
+
+Mean outcome and worst case both improve **monotonically** with credit-to-width, on data the gate had
+never seen. Note the column that moves the other way: **win rate falls as outcomes improve.** The
+98.2%-win bucket has the worst mean and the worst single loss in the study. That is negative skew
+stated as plainly as data can state it, and it is the reason this gate is built on expectancy rather
+than hit rate - the metric a P&L-first reading would reach for is the one that is upside down here.
+
+Two more findings, including the one that is inconvenient:
+
+* The gate approved **9 of 602** (1.5%). Those nine never lost, and averaged +181/spread against
+  +12 for the refused. Nine is a small sample and section 1 of the report says so.
+* **Refusing was not free.** The 593 refused candidates were profitable in aggregate over this
+  window, by +7,297. The window contains one meaningful drawdown (SPY 754 -> 725 in early June)
+  which produced every one of the worst refused outcomes; a window with a real tail event would
+  likely favour refusal more, and this study cannot distinguish those cases. It is on the page
+  because leaving it off would make the rest of the page worth less.
+
+`evidence/ev-backtest/REPORT.md` carries the full result and five stated limitations - closing marks
+rather than bid/ask, realized rather than implied volatility, held to expiry, one entry per expiry,
+and no return claim anywhere.
+
+## 4. What is actually enforced
 
 **The verdict is deterministic, and an LLM cannot move it upward.** The engine is a pure function. An
 advisory model may make a decision *more* conservative — reduce, or reject — and can never increase a
@@ -232,7 +276,7 @@ MIZAN -> REJECTED
 
 ---
 
-## 4. The P&L, plainly
+## 5. The P&L, plainly
 
 **Account `5b61edf2-7440-4d4a-9c5a-186a4f262ab0`** — Alpaca paper, started at exactly $100,000.00.
 Real multi-leg orders were submitted and filled, each as one atomic `order_class=mleg` order rather
@@ -261,7 +305,7 @@ should be traded. The strategy exists so that there is something real to govern.
 
 ---
 
-## 5. Limits, named rather than discovered
+## 6. Limits, named rather than discovered
 
 - **Option greeks are unavailable on this account.** `feed=opra` answers `HTTP 403 — "OPRA agreement
   is not signed"`. Mizan's response is to **block, not guess**: the delta/gamma/vega checks return
@@ -292,7 +336,7 @@ should be traded. The strategy exists so that there is something real to govern.
 
 ---
 
-## 6. Where things are
+## 7. Where things are
 
 | | |
 |---|---|
