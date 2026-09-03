@@ -82,6 +82,8 @@ CHECK_IDS: tuple[str, ...] = (
     # REQ-35. APPENDED, never inserted: CHECK_INDEX is positional and BASE_CHECK_IDS slices the first
     # 19, so putting this anywhere else would silently renumber every existing check.
     "account_capability",
+    # F-31 / R-OPT-3. APPENDED like account_capability, for the same reason: CHECK_INDEX is positional.
+    "structure_valid",
 )
 BASE_CHECK_IDS: tuple[str, ...] = CHECK_IDS[:19]
 ALWAYS_ON_CHECKS: tuple[str, ...] = (
@@ -95,6 +97,9 @@ CHECK_INDEX: dict[str, int] = {check_id: index for index, check_id in enumerate(
 # The optional policy section each check reads. ``None`` = always available (no section, or a required section).
 CHECK_SECTIONS: dict[str, str | None] = {
     "account_capability": "account",
+    # No section: a defined-risk rule needs no configuration to be correct, and making it optional
+    # would let a policy switch off the thing that makes max loss computable at all.
+    "structure_valid": None,
     "market_data_presence": None,
     "portfolio_state_presence": None,
     "proposal_expiry": None,

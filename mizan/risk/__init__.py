@@ -75,6 +75,8 @@ IMPLEMENTED_CHECKS: frozenset[str] = frozenset(
         "options_short_vega_limit",
         # REQ-35
         "account_capability",
+        # F-31
+        "structure_valid",
     }
 )
 

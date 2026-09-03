@@ -8,7 +8,7 @@
     }
   },
   "engine_version": "mizan-core/0.1.0",
-  "fingerprint": "ebdd861ad21e2eef24fe92c0ca1264ac140dd15eeb8c527ff9d20d95648345e5",
+  "fingerprint": "cc482f2772769849b64edc55c145f9f0eb5530e83edb8877c876abeff3edadea",
   "scenarios": [
     {
       "authorized_total_quantity": "10",
@@ -56,9 +56,11 @@
         "absorbing_barrier",
         "factor_exposure",
         "book_liquidation_time",
-        "account_capability"
+        "account_capability",
+        "structure_valid"
       ],
       "check_passed_in_order": [
+        true,
         true,
         true,
         true,
@@ -106,13 +108,13 @@
       ],
       "decision_reason_codes": [],
       "decision_verdict": "APPROVE",
-      "evaluation_id": "bb7b542b2cba57ba512d088f8a4549aeace1b5d7c9560b828b0dfd20311e816e",
+      "evaluation_id": "375b167561ffb00961f0aecb5bf3fe1dc8c9abc0981268a1f4f7d22ac1b9a432",
       "evaluation_reason_codes": [],
       "evaluation_recommended_quantity": "10",
       "evaluation_verdict": "PASS",
       "policy_hash": "b8c8bafb40164819f9c7c7427e032f0ecc651602584f82001198e8af42d71749",
       "scenario": "pass_baseline",
-      "verdict_hash": "8ce11bb0f179d2edee11faa5b160a777e516f424381b554e56887b63fb501b1d"
+      "verdict_hash": "2e256bd31b040987a2c28557ecaed9262d2d5872e384a589c2c6e3494da1619f"
     },
     {
       "authorized_total_quantity": "5",
@@ -160,7 +162,8 @@
         "absorbing_barrier",
         "factor_exposure",
         "book_liquidation_time",
-        "account_capability"
+        "account_capability",
+        "structure_valid"
       ],
       "check_passed_in_order": [
         true,
@@ -206,13 +209,14 @@
         true,
         true,
         true,
+        true,
         true
       ],
       "decision_reason_codes": [
         "SIZE_SCALED_BY_DRAWDOWN"
       ],
       "decision_verdict": "REDUCE",
-      "evaluation_id": "5b4b64df4581d7762857d034997d1d45c2a30ded807d2d2fac84bdfd966bd8ba",
+      "evaluation_id": "dbbf9ef2e606717ee28211d316889550a677dbf80c1f2283d35a90ee2f80d633",
       "evaluation_reason_codes": [
         "SIZE_SCALED_BY_DRAWDOWN"
       ],
@@ -220,7 +224,7 @@
       "evaluation_verdict": "REDUCE",
       "policy_hash": "b8c8bafb40164819f9c7c7427e032f0ecc651602584f82001198e8af42d71749",
       "scenario": "reduce_by_drawdown",
-      "verdict_hash": "e22d641df0b0ce91190038b36d67021a972a00650133e1b2471a68953c985ee3"
+      "verdict_hash": "530b29601c0973bf3eeddc182c5a501eaf9e52138a2e75c0f1f3f2a20fcd3317"
     },
     {
       "authorized_total_quantity": "0",
@@ -268,7 +272,8 @@
         "absorbing_barrier",
         "factor_exposure",
         "book_liquidation_time",
-        "account_capability"
+        "account_capability",
+        "structure_valid"
       ],
       "check_passed_in_order": [
         true,
@@ -314,6 +319,7 @@
         true,
         true,
         true,
+        true,
         true
       ],
       "decision_reason_codes": [
@@ -321,7 +327,7 @@
         "HARD_REJECTION_UPHELD"
       ],
       "decision_verdict": "REJECT",
-      "evaluation_id": "a9fde0157d8c2969a4eff63f6eac510355b6e92c2e60a465f8eccd6472bf2696",
+      "evaluation_id": "b66b5e7fb6be66a4920f3f0629907871060eb629de943823b7f1201f5d8adf85",
       "evaluation_reason_codes": [
         "AGGREGATE_EXPOSURE_EXCEEDED"
       ],
@@ -329,7 +335,7 @@
       "evaluation_verdict": "REJECT",
       "policy_hash": "b8c8bafb40164819f9c7c7427e032f0ecc651602584f82001198e8af42d71749",
       "scenario": "reject_by_aggregate",
-      "verdict_hash": "0df180ca8f29eee7099650a767da1f01c627658d10a40722b4d2b563b3d43b64"
+      "verdict_hash": "795d9fa41fa5e0f6ad511008641f960347896439a87622b414de632290ee5f53"
     },
     {
       "authorized_total_quantity": "5",
@@ -377,9 +383,11 @@
         "absorbing_barrier",
         "factor_exposure",
         "book_liquidation_time",
-        "account_capability"
+        "account_capability",
+        "structure_valid"
       ],
       "check_passed_in_order": [
+        true,
         true,
         true,
         true,
@@ -427,13 +435,13 @@
       ],
       "decision_reason_codes": [],
       "decision_verdict": "APPROVE",
-      "evaluation_id": "b60562afabe8d908010dfea5ae0a4dbcbf03233b6bdf51ba96217fba8fd798c1",
+      "evaluation_id": "e110f91847cf36170ce9b2b4d8dc77f31cdefba73b9c7d8ab4a35ff9f15d606a",
       "evaluation_reason_codes": [],
       "evaluation_recommended_quantity": "5",
       "evaluation_verdict": "PASS",
       "policy_hash": "b8c8bafb40164819f9c7c7427e032f0ecc651602584f82001198e8af42d71749",
       "scenario": "option_multi_leg",
-      "verdict_hash": "1a011ca38662ad0acb80fe688e028ba3676ed6d6ebad44ccf40cac4e5a308401"
+      "verdict_hash": "4f25d2820f66d61d38683b4d6b8ce6e3bdbb58b4e25486612719d3ec2c7c228b"
     },
     {
       "authorized_total_quantity": "10",
@@ -481,9 +489,11 @@
         "absorbing_barrier",
         "factor_exposure",
         "book_liquidation_time",
-        "account_capability"
+        "account_capability",
+        "structure_valid"
       ],
       "check_passed_in_order": [
+        true,
         true,
         true,
         true,
@@ -531,13 +541,13 @@
       ],
       "decision_reason_codes": [],
       "decision_verdict": "APPROVE",
-      "evaluation_id": "bb7b542b2cba57ba512d088f8a4549aeace1b5d7c9560b828b0dfd20311e816e",
+      "evaluation_id": "375b167561ffb00961f0aecb5bf3fe1dc8c9abc0981268a1f4f7d22ac1b9a432",
       "evaluation_reason_codes": [],
       "evaluation_recommended_quantity": "10",
       "evaluation_verdict": "PASS",
       "policy_hash": "b8c8bafb40164819f9c7c7427e032f0ecc651602584f82001198e8af42d71749",
       "scenario": "injected_free_text",
-      "verdict_hash": "8ce11bb0f179d2edee11faa5b160a777e516f424381b554e56887b63fb501b1d"
+      "verdict_hash": "2e256bd31b040987a2c28557ecaed9262d2d5872e384a589c2c6e3494da1619f"
     }
   ],
   "schema": "mizan.determinism-fingerprint/1"

@@ -104,6 +104,25 @@ def _exemplars():
                 ],
             ),
         ),
+        # F-31: a bull_call_spread whose legs are BOTH short - the right leg COUNT, the wrong
+        # structure. This exact input was APPROVEd for 10 contracts before structure_valid existed.
+        "structure_valid": (
+            rebuild_proposal(
+                make_option_proposal(),
+                strategy="bull_call_spread",
+                legs=[
+                    {**leg, "leg_index": i, "side": "sell", "contract_type": "call", "strike": strike}
+                    for i, (leg, strike) in enumerate(
+                        zip(
+                            make_option_proposal().model_dump(mode="json")["legs"] * 2,
+                            ("230", "235"),
+                            strict=False,
+                        )
+                    )
+                ],
+            ),
+            path_and_aggregate_policy(),
+        ),
         # REQ-35: the failing condition is the ACCOUNT's state, not the order's.
         "account_capability": (
             proposal,

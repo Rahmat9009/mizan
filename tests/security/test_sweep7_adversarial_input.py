@@ -477,13 +477,6 @@ def test_f31_a_named_strategy_constrains_only_the_number_of_legs() -> None:
     assert [leg.side for leg in spread.legs] == ["sell", "sell"]
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="F-31 OPEN (HIGH, L1 risk): an unhedged short option is APPROVEd. A single SELL call "
-    "under strategy='custom' and a 'bull_call_spread'/'iron_condor' composed entirely of short "
-    "legs all pass the whole decision plane; nothing implements R-OPT-3 ('a spread that loses "
-    "or unbalances a leg is a naked short'). Remove this marker when F-31 is fixed.",
-)
 @pytest.mark.parametrize(
     ("name", "overrides"),
     [
@@ -511,14 +504,6 @@ def test_f31_an_unhedged_short_option_structure_must_be_rejected(
     )
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="F-31 OPEN (HIGH, L1 risk): NO shipped policy stops it. Even the institutional policy - "
-    "short-gamma and short-vega limits set, 'custom' on the restricted list, invalidation "
-    "required, fail-closed on an unavailable advisory - APPROVEs an 'iron_condor' whose four "
-    "legs are all short calls, because the only control that could reach it is a structure "
-    "rule and there is none. Remove this marker when F-31 is fixed.",
-)
 @pytest.mark.parametrize(
     ("name", "strategy", "leg_count"),
     [
@@ -555,15 +540,21 @@ def test_f31_not_even_the_institutional_policy_rejects_a_spread_made_only_of_sho
     )
 
 
-def test_f31_the_option_greek_caps_are_the_only_thing_binding_a_naked_short() -> None:
-    """Pinned as the residual defence, so its removal would be visible.
+def test_f31_structure_is_now_the_primary_defence_and_the_greek_caps_remain_the_second() -> None:
+    """F-31 CLOSED. This test's original premise - that the greek caps were the ONLY thing binding a
+    naked short - no longer holds, which is the point: `structure_valid` now refuses the position on
+    its SHAPE, at any size, before the greek limits are consulted at all.
 
-    The delta and gamma limits DO catch a large naked short. They are portfolio-greek limits, not
-    structure rules, so they scale with the greeks of the contract rather than with the unbounded
-    loss it carries - which is why F-31 asks for a structure check as well, not instead.
+    Both layers are pinned because F-31 asked for a structure check "as well, not instead": the greek
+    caps still scale with the contract's greeks and still catch a large short, so a future regression
+    in either layer stays visible.
     """
     small = decide(build(asset_class="equity_option", strategy="custom", legs=[dict(NAKED_SHORT_CALL)]))
-    assert small["decision"].verdict == "APPROVE"
+    assert small["decision"].verdict == "REJECT", (
+        "a naked short is now refused at ANY size by structure, not merely at the size where the "
+        "portfolio greek caps happen to bind"
+    )
+    assert ReasonCode.NAKED_SHORT_NOT_PERMITTED in small["decision"].reason_codes
     large = decide(
         build(
             asset_class="equity_option",

@@ -2011,6 +2011,131 @@ def account_capability(
     )
 
 
+# ---------------------------------------------------------------------------------------------------
+# Defined-risk structure (F-31 / Risk Canon R-OPT-3): the legs must FORM the strategy they declare
+# ---------------------------------------------------------------------------------------------------
+#: What each named vertical must be: (contract_type, side of the LOWER strike, side of the HIGHER strike).
+#: A vertical is defined-risk precisely because the long leg caps the short one; get the sides wrong and
+#: the same two legs are an unhedged short wearing a spread's name.
+VERTICAL_SHAPES: dict[str, tuple[str, str, str]] = {
+    "bull_call_spread": ("call", "buy", "sell"),
+    "bear_call_spread": ("call", "sell", "buy"),
+    "bull_put_spread": ("put", "sell", "buy"),
+    "bear_put_spread": ("put", "buy", "sell"),
+}
+
+
+def structure_valid(proposal: TradeProposal, context: RiskContext, policy: Policy) -> CheckResult | None:
+    """Every short option leg must be covered, and a named spread must actually be that spread.
+
+    `STRATEGY_LEG_COUNTS` constrains the NUMBER of legs and nothing else, so before this check a
+    `bull_call_spread` of two SHORT calls passed the entire decision plane (F-31), as did an
+    `iron_condor` of four short calls and a naked short dressed as `custom`. The greek caps bounded the
+    exposure at size but are portfolio limits, not structure rules: they bind at 50 contracts, not at 5.
+
+    Two rules, both structural, neither of which can be satisfied by getting the count right:
+      1. COVERAGE. For each (contract_type, expiry), long contracts must be >= short contracts. This is
+         what makes max loss computable at construction - the long leg caps the short one - and it is
+         the whole reason a defined-risk strategy is defined-risk.
+      2. SHAPE. A named vertical must have the sides its name claims: a bull call spread is long the
+         lower strike and short the higher one. Anything else is a different position with a
+         reassuring label, which is worse than an honest `custom`.
+    """
+    if proposal.asset_class != "equity_option":
+        return ok("structure_valid", policy, detail="not an options proposal")
+
+    longs: dict[tuple[str, str], Decimal] = {}
+    shorts: dict[tuple[str, str], Decimal] = {}
+    for leg in proposal.legs:
+        if leg.contract_type is None or leg.expiry is None:
+            return missing(
+                "structure_valid",
+                ReasonCode.STRUCTURE_INVALID,
+                "an option leg carries no contract type or expiry; coverage cannot be established",
+            )
+        bucket = longs if leg.side == "buy" else shorts
+        key = (leg.contract_type, leg.expiry)
+        bucket[key] = add(bucket.get(key, ZERO), dec(leg.quantity))
+
+    for key, short_quantity in shorts.items():
+        covered = longs.get(key, ZERO)
+        if covered < short_quantity:
+            contract_type, expiry = key
+            return fail(
+                "structure_valid",
+                policy,
+                ReasonCode.NAKED_SHORT_NOT_PERMITTED,
+                threshold=covered,
+                actual=short_quantity,
+                detail=(
+                    f"{dstr(short_quantity)} short {contract_type} expiring {expiry} against "
+                    f"{dstr(covered)} long: the uncovered portion has unbounded loss"
+                ),
+            )
+
+    shape = VERTICAL_SHAPES.get(proposal.strategy)
+    if shape is not None:
+        contract_type, lower_side, upper_side = shape
+        if len(proposal.legs) != 2:
+            return fail(
+                "structure_valid",
+                policy,
+                ReasonCode.STRUCTURE_INVALID,
+                detail=f"{proposal.strategy} must have exactly two legs, not {len(proposal.legs)}",
+            )
+        if any(leg.contract_type != contract_type for leg in proposal.legs):
+            return fail(
+                "structure_valid",
+                policy,
+                ReasonCode.STRUCTURE_INVALID,
+                detail=f"{proposal.strategy} must be built from {contract_type}s only",
+            )
+        if len({leg.expiry for leg in proposal.legs}) != 1:
+            return fail(
+                "structure_valid",
+                policy,
+                ReasonCode.STRUCTURE_INVALID,
+                detail=f"{proposal.strategy} legs must share one expiry; this is a diagonal, not a vertical",
+            )
+        lower, upper = sorted(proposal.legs, key=lambda leg: dec(leg.strike or "0"))
+        if dec(lower.strike or "0") == dec(upper.strike or "0"):
+            return fail(
+                "structure_valid",
+                policy,
+                ReasonCode.STRUCTURE_INVALID,
+                detail=f"{proposal.strategy} legs must have different strikes",
+            )
+        if lower.side != lower_side or upper.side != upper_side:
+            return fail(
+                "structure_valid",
+                policy,
+                ReasonCode.STRUCTURE_INVALID,
+                detail=(
+                    f"{proposal.strategy} must be {lower_side} the {lower.strike} and {upper_side} the "
+                    f"{upper.strike}; these legs are {lower.side}/{upper.side}"
+                ),
+            )
+        if dec(lower.quantity) != dec(upper.quantity):
+            return fail(
+                "structure_valid",
+                policy,
+                ReasonCode.STRUCTURE_INVALID,
+                detail=(
+                    f"{proposal.strategy} legs must be equal size; {dstr(dec(lower.quantity))} vs "
+                    f"{dstr(dec(upper.quantity))} leaves the difference uncovered"
+                ),
+            )
+
+    return ok(
+        "structure_valid",
+        policy,
+        actual=Decimal(len(proposal.legs)),
+        detail=(
+            f"{proposal.strategy}: every short leg is covered by a long of the same type and expiry"
+        ),
+    )
+
+
 CHECK_FUNCTIONS: dict[str, CheckFunction] = {
     "market_data_presence": market_data_presence,
     "portfolio_state_presence": portfolio_state_presence,
@@ -2049,4 +2174,5 @@ CHECK_FUNCTIONS: dict[str, CheckFunction] = {
     "options_short_gamma_limit": options_short_gamma_limit,
     "options_short_vega_limit": options_short_vega_limit,
     "account_capability": account_capability,
+    "structure_valid": structure_valid,
 }
