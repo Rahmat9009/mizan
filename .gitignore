@@ -41,3 +41,4 @@ audit*.json
 .vscode/
 .DS_Store
 Thumbs.db
+.mizan-orchestrator.lock
