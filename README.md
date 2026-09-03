@@ -180,9 +180,12 @@ Named in full in [`WRITEUP.md` §5](WRITEUP.md). The short version:
   exist in the adapter. Positions run to expiry or are closed by hand, outside this system.
 - **The volatility signal has zero authority** and is off by default ([`docs/VOL-SIGNAL.md`](docs/VOL-SIGNAL.md)).
 - **The M5 console and Postgres per-tenant isolation are out of scope** in this build.
-- **Six tests are red**, all in `tests/integration/test_the_demo_proves_the_aim.py`, which asserts on
-  sentences in `CURRENT_AIM.md` that were rewritten for this submission. The remainder of the suite is
-  2620 passed, 11 skipped, 53 xfailed — the xfails name open findings by id.
+- **A hash chain cannot detect truncation, or protect its own last record.** Delete the tail and the
+  rest still verifies; forge the head and nothing links to it to disagree. Both are the same
+  limitation, both are pinned by tests, and the mitigation is external: `verify_chain` prints the head
+  and takes `--expect-head` to check it against a value you already held.
+- **The suite is green:** 2690 passed, 11 skipped, 53 xfailed — the xfails name open findings by id
+  rather than silencing them.
 
 ---
 

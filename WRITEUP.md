@@ -326,10 +326,23 @@ should be traded. The strategy exists so that there is something real to govern.
 - **Out of scope in this build:** the M5 console, and the Postgres per-tenant isolation (authored as
   SQL and compose, but the Docker daemon was unavailable here, so SQLite one-file-per-tenant is the
   tested isolation).
-- **Six tests are red** — all of them in `tests/integration/test_the_demo_proves_the_aim.py`, which
-  asserts that specific sentences appear in `CURRENT_AIM.md`; that file was rewritten for this
-  submission, so the assertions no longer match its text. The rest of the suite is **2620 passed, 11
-  skipped, 53 xfailed** (the xfails are named open findings with the finding id in the reason string).
+- **A hash chain cannot detect its own truncation.** Delete the last records and every remaining
+  hash still chains perfectly, because the evidence that they existed is exactly what was deleted. An
+  empty ledger and a fully deleted one are the same bytes on disk. Nothing stored *beside* the records
+  helps — whoever can delete records can delete a counter too.
+- **Nor can it protect its own last record.** Every record is protected by the record after it; the
+  head has none. A forgery there that recomputes its own `audit_hash` leaves a chain that verifies —
+  demonstrated on `recorded_at` (backdating *when* a decision was made), the agent's `reasoning`, and
+  `library_versions`. Fields covered by another derived hash survive it: rewriting the verdict still
+  fails, because `verdict_hash` independently binds it.
+  Both of these are the same limitation — the head is the one position no internal structure can
+  defend, since any structure that could defend it would itself be at the head. So `verify_chain`
+  prints the head on every success and takes `--expect-head` / `--expect-length` to check it against a
+  value the holder already had. Certificate Transparency publishes a signed tree head for exactly this
+  reason. Sixteen probes in `tests/audit/test_chain_stress.py` pin all of it, including the two
+  limitations themselves, so that improving them is a deliberate act rather than an accident.
+- **The suite is green:** **2690 passed, 11 skipped, 53 xfailed**, and the xfails are named open
+  findings carrying the finding id in the reason string — not silenced failures.
 - **What the evidence does not prove:** that the policy is a *good* policy. That is the customer's
   judgement, which is exactly why the policy is versioned, hashed, snapshotted into every record, and
   replayable against.
