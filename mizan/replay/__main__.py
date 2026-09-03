@@ -85,6 +85,70 @@ def _fingerprint_matches(verbose: bool) -> bool:
     return proc.returncode == 0
 
 
+def _fingerprint() -> str:
+    """The engine determinism fingerprint from the committed reference, or "unpinned"."""
+    try:
+        import json
+
+        return json.loads(REFERENCE.read_text(encoding="utf-8"))["fingerprint"]
+    except Exception:
+        return "unpinned"
+
+
+def _replay_persisted_ledger(root: Path, verbose: bool) -> tuple[int, int, bool]:
+    """Re-derive every decision in a PERSISTED ledger. No credentials, no network, no broker.
+
+    This is the reproducibility claim in its strongest form: anyone holding the ledger file and this
+    engine can recompute every verdict, without an Alpaca key, without our infrastructure, and without
+    asking us for anything. The records are the evidence; this command is how a third party checks it.
+
+    A record is reproduced only when BOTH the recomputed verdict AND its hash match bit-for-bit - the
+    verdict alone would let a changed reason code or a changed authorized quantity slip through, since
+    verdict_hash covers those too.
+    """
+    from mizan.audit import SqliteLedger
+
+    tenant_files = sorted(root.glob("*.sqlite"))
+    if not tenant_files:
+        print(f"  no tenant ledgers found under {root}")
+        return 0, 0, False
+
+    ledger = SqliteLedger(root)
+    total = identical = 0
+    chains_ok = True
+    for tenant_file in tenant_files:
+        tenant_id = tenant_file.stem
+        tenant = ledger.for_tenant(tenant_id)
+
+        chain = tenant.verify_chain()
+        chains_ok = chains_ok and chain.ok
+        print(f"  tenant {tenant_id}: chain ok={chain.ok} length={chain.length}"
+              + ("" if chain.ok else f" FIRST BAD SEQUENCE {chain.first_bad_sequence}"))
+
+        for record in tenant.list(limit=100000)[::-1]:
+            total += 1
+            result = replay(record)
+            matched = (
+                result.identical
+                and result.replayed_verdict == result.original_verdict
+                and result.replayed_verdict_hash == result.original_verdict_hash
+            )
+            if matched:
+                identical += 1
+                if verbose:
+                    print(f"      seq {record.sequence:<4} {result.original_verdict:<8} "
+                          f"{result.original_verdict_hash[:16]} reproduced")
+            else:
+                seq = record.sequence
+                print(f"      seq {seq:<4} MISMATCH decision={result.decision_id}")
+                print(f"          verdict {result.original_verdict!r}"
+                      f" -> {result.replayed_verdict!r}")
+                print(f"          hash    {result.original_verdict_hash}")
+                print(f"          ->      {result.replayed_verdict_hash}")
+                print(f"          {result.detail}")
+    return identical, total, chains_ok
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m mizan.replay", description=__doc__)
     parser.add_argument("--all", action="store_true", help="replay every record in the built chain")
@@ -94,11 +158,35 @@ def main(argv: list[str] | None = None) -> int:
         help="exit non-zero unless every replay is identical and the fingerprint matches",
     )
     parser.add_argument("--count", type=int, default=8, help="records to build and replay (default 8)")
+    parser.add_argument(
+        "--ledger",
+        type=Path,
+        help="replay every decision in a PERSISTED ledger directory (no credentials, no network)",
+    )
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args(argv)
 
+    if args.ledger is not None:
+        fingerprint = _fingerprint()
+        print(f"credential-free decision replay over {args.ledger}")
+        identical, total, chains_ok = _replay_persisted_ledger(args.ledger, args.verbose)
+        print()
+        if total == 0:
+            print("RESULT: NO RECORDS - nothing to reproduce")
+            return 1
+        print(f"{identical}/{total} decisions reproduced identically | engine {fingerprint[:8]}")
+        ok = identical == total and chains_ok
+        print("RESULT: " + ("IDENTICAL" if ok else "NOT IDENTICAL"))
+        if ok:
+            print()
+            print(
+                f"  {identical}/{total} decisions reproduce bit-for-bit from the record via one "
+                f"credential-free command (engine {fingerprint[:8]})."
+            )
+        return 0 if ok else 1
+
     if not args.all:
-        parser.error("nothing to do: pass --all")
+        parser.error("nothing to do: pass --all or --ledger PATH")
 
     print(f"decision replay: building {args.count} records")
     tenant = _build_chain(args.count)
