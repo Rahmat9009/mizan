@@ -84,6 +84,10 @@ CHECK_IDS: tuple[str, ...] = (
     "account_capability",
     # F-31 / R-OPT-3. APPENDED like account_capability, for the same reason: CHECK_INDEX is positional.
     "structure_valid",
+    # EV-GATE. APPENDED for the third time and for the same reason: CHECK_INDEX is positional and
+    # BASE_CHECK_IDS slices the first 19, so inserting this anywhere else silently renumbers every
+    # existing check. Verified no index moved.
+    "expected_value",
 )
 BASE_CHECK_IDS: tuple[str, ...] = CHECK_IDS[:19]
 ALWAYS_ON_CHECKS: tuple[str, ...] = (
@@ -143,6 +147,11 @@ CHECK_SECTIONS: dict[str, str | None] = {
     "absorbing_barrier": "tail",
     "factor_exposure": "factor",
     "book_liquidation_time": "aggregate",
+    # Its own section, so a tenant that has not configured expected-value floors does not inherit a
+    # blocking check it never asked for. There is no defensible DEFAULT floor: a floor is a statement
+    # about a tenant's risk appetite, and inventing one on their behalf is the policy-shopping this
+    # check exists to prevent, run in reverse.
+    "expected_value": "ev",
 }
 assert set(CHECK_SECTIONS) == set(CHECK_IDS)
 
@@ -204,6 +213,20 @@ class AccountPolicy(ContractModel):
     require_active: bool = True
     min_options_trading_level: int | None = Field(default=None, ge=0, le=3)
     require_shorting_enabled_for_short_legs: bool = True
+
+
+class ExpectedValuePolicy(ContractModel):
+    """Floors for the expected-value gate. Derived from first principles in ``docs/EV-GATE.md``.
+
+    Every floor is a ``RatioStr``, so none of them can be set negative. That is deliberate for
+    ``min_ev_to_max_loss`` in particular: a negative floor would configure a gate that permits a trade
+    the engine has just computed to be expected-value-negative, which is not a risk appetite but a
+    contradiction. The contract refuses to express it.
+    """
+
+    min_credit_to_width: RatioStr
+    min_pop: RatioStr
+    min_ev_to_max_loss: RatioStr
 
 
 class Restricted(ContractModel):
@@ -392,6 +415,7 @@ class Policy(ContractModel):
     time: TimePolicy | None = None
     tail: TailPolicy | None = None
     factor: FactorPolicy | None = None
+    ev: ExpectedValuePolicy | None = None
 
     @model_validator(mode="after")
     def _rules(self, info: ValidationInfo) -> Policy:
@@ -453,6 +477,7 @@ __all__ = [
     "CheckIdStr",
     "CheckSeverity",
     "DrawdownScalingStep",
+    "ExpectedValuePolicy",
     "FactorPolicy",
     "FailClosed",
     "LiquidityPolicy",

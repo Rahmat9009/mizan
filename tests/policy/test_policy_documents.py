@@ -39,6 +39,8 @@ def test_the_policies_directory_is_not_empty():
         # Alpaca serves no greeks without an OPRA agreement and OptionsLimits makes all three
         # portfolio greek limits REQUIRED - so the section is all-or-nothing on that data tier.
         "options-defined-risk.yaml",
+        # Adds the expected-value gate on top of the defined-risk controls.
+        "options-ev-gated.yaml",
     ]
 
 

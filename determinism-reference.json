@@ -8,7 +8,7 @@
     }
   },
   "engine_version": "mizan-core/0.1.0",
-  "fingerprint": "cc482f2772769849b64edc55c145f9f0eb5530e83edb8877c876abeff3edadea",
+  "fingerprint": "da21b43c6ec2127b2416b9c396ee8bb730fecb8705809d6aba6121330fba3984",
   "scenarios": [
     {
       "authorized_total_quantity": "10",
@@ -57,9 +57,11 @@
         "factor_exposure",
         "book_liquidation_time",
         "account_capability",
-        "structure_valid"
+        "structure_valid",
+        "expected_value"
       ],
       "check_passed_in_order": [
+        true,
         true,
         true,
         true,
@@ -108,13 +110,13 @@
       ],
       "decision_reason_codes": [],
       "decision_verdict": "APPROVE",
-      "evaluation_id": "375b167561ffb00961f0aecb5bf3fe1dc8c9abc0981268a1f4f7d22ac1b9a432",
+      "evaluation_id": "d9e242eca3253dc8f14edf23c3fdeaa7813b40d3207315a09be80ecece4ab19c",
       "evaluation_reason_codes": [],
       "evaluation_recommended_quantity": "10",
       "evaluation_verdict": "PASS",
-      "policy_hash": "b8c8bafb40164819f9c7c7427e032f0ecc651602584f82001198e8af42d71749",
+      "policy_hash": "5a209f4a478f6a06e50676c35228564101646b93226fc35ed04405908e319b09",
       "scenario": "pass_baseline",
-      "verdict_hash": "2e256bd31b040987a2c28557ecaed9262d2d5872e384a589c2c6e3494da1619f"
+      "verdict_hash": "ef3b96d273a9a517edf16845afb7cbe308d8eee856726ac5d1db55bccace5443"
     },
     {
       "authorized_total_quantity": "5",
@@ -163,7 +165,8 @@
         "factor_exposure",
         "book_liquidation_time",
         "account_capability",
-        "structure_valid"
+        "structure_valid",
+        "expected_value"
       ],
       "check_passed_in_order": [
         true,
@@ -210,21 +213,22 @@
         true,
         true,
         true,
+        true,
         true
       ],
       "decision_reason_codes": [
         "SIZE_SCALED_BY_DRAWDOWN"
       ],
       "decision_verdict": "REDUCE",
-      "evaluation_id": "dbbf9ef2e606717ee28211d316889550a677dbf80c1f2283d35a90ee2f80d633",
+      "evaluation_id": "ee0ce249e6452ef84651a640e4c92674751abe6e6a9346bb720bcdd5ae7860b4",
       "evaluation_reason_codes": [
         "SIZE_SCALED_BY_DRAWDOWN"
       ],
       "evaluation_recommended_quantity": "5",
       "evaluation_verdict": "REDUCE",
-      "policy_hash": "b8c8bafb40164819f9c7c7427e032f0ecc651602584f82001198e8af42d71749",
+      "policy_hash": "5a209f4a478f6a06e50676c35228564101646b93226fc35ed04405908e319b09",
       "scenario": "reduce_by_drawdown",
-      "verdict_hash": "530b29601c0973bf3eeddc182c5a501eaf9e52138a2e75c0f1f3f2a20fcd3317"
+      "verdict_hash": "47d4683d97df5b8bcf445eceb29aaefa2a171df0a2659c4dc9a0803dd37e2d62"
     },
     {
       "authorized_total_quantity": "0",
@@ -273,7 +277,8 @@
         "factor_exposure",
         "book_liquidation_time",
         "account_capability",
-        "structure_valid"
+        "structure_valid",
+        "expected_value"
       ],
       "check_passed_in_order": [
         true,
@@ -320,6 +325,7 @@
         true,
         true,
         true,
+        true,
         true
       ],
       "decision_reason_codes": [
@@ -327,15 +333,15 @@
         "HARD_REJECTION_UPHELD"
       ],
       "decision_verdict": "REJECT",
-      "evaluation_id": "b66b5e7fb6be66a4920f3f0629907871060eb629de943823b7f1201f5d8adf85",
+      "evaluation_id": "aa9abcc7694871ef6ea4502d44f8b9dfae2bbcf5cfd49a2c6f55fb6bafa0411f",
       "evaluation_reason_codes": [
         "AGGREGATE_EXPOSURE_EXCEEDED"
       ],
       "evaluation_recommended_quantity": "0",
       "evaluation_verdict": "REJECT",
-      "policy_hash": "b8c8bafb40164819f9c7c7427e032f0ecc651602584f82001198e8af42d71749",
+      "policy_hash": "5a209f4a478f6a06e50676c35228564101646b93226fc35ed04405908e319b09",
       "scenario": "reject_by_aggregate",
-      "verdict_hash": "795d9fa41fa5e0f6ad511008641f960347896439a87622b414de632290ee5f53"
+      "verdict_hash": "0720df44e6c58605ea1204a320664b9079a6580948e4addf1c83d956d29b5a26"
     },
     {
       "authorized_total_quantity": "5",
@@ -384,9 +390,11 @@
         "factor_exposure",
         "book_liquidation_time",
         "account_capability",
-        "structure_valid"
+        "structure_valid",
+        "expected_value"
       ],
       "check_passed_in_order": [
+        true,
         true,
         true,
         true,
@@ -435,13 +443,13 @@
       ],
       "decision_reason_codes": [],
       "decision_verdict": "APPROVE",
-      "evaluation_id": "e110f91847cf36170ce9b2b4d8dc77f31cdefba73b9c7d8ab4a35ff9f15d606a",
+      "evaluation_id": "17bf0f42ec3441a2e11af11d83d03fe67a65ccf5354a147864811b517ce5ffa1",
       "evaluation_reason_codes": [],
       "evaluation_recommended_quantity": "5",
       "evaluation_verdict": "PASS",
-      "policy_hash": "b8c8bafb40164819f9c7c7427e032f0ecc651602584f82001198e8af42d71749",
+      "policy_hash": "5a209f4a478f6a06e50676c35228564101646b93226fc35ed04405908e319b09",
       "scenario": "option_multi_leg",
-      "verdict_hash": "4f25d2820f66d61d38683b4d6b8ce6e3bdbb58b4e25486612719d3ec2c7c228b"
+      "verdict_hash": "3775a02cf5610b2a8185bc2925582f1475fb60e03b92dc89e5e0b6bc86694f7a"
     },
     {
       "authorized_total_quantity": "10",
@@ -490,9 +498,11 @@
         "factor_exposure",
         "book_liquidation_time",
         "account_capability",
-        "structure_valid"
+        "structure_valid",
+        "expected_value"
       ],
       "check_passed_in_order": [
+        true,
         true,
         true,
         true,
@@ -541,13 +551,13 @@
       ],
       "decision_reason_codes": [],
       "decision_verdict": "APPROVE",
-      "evaluation_id": "375b167561ffb00961f0aecb5bf3fe1dc8c9abc0981268a1f4f7d22ac1b9a432",
+      "evaluation_id": "d9e242eca3253dc8f14edf23c3fdeaa7813b40d3207315a09be80ecece4ab19c",
       "evaluation_reason_codes": [],
       "evaluation_recommended_quantity": "10",
       "evaluation_verdict": "PASS",
-      "policy_hash": "b8c8bafb40164819f9c7c7427e032f0ecc651602584f82001198e8af42d71749",
+      "policy_hash": "5a209f4a478f6a06e50676c35228564101646b93226fc35ed04405908e319b09",
       "scenario": "injected_free_text",
-      "verdict_hash": "2e256bd31b040987a2c28557ecaed9262d2d5872e384a589c2c6e3494da1619f"
+      "verdict_hash": "ef3b96d273a9a517edf16845afb7cbe308d8eee856726ac5d1db55bccace5443"
     }
   ],
   "schema": "mizan.determinism-fingerprint/1"

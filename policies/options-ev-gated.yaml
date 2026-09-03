@@ -1,0 +1,93 @@
+# Mizan policy -- options-defined-risk, plus the expected-value gate.
+#
+# This is `options-defined-risk` with one control added, so that the difference the EV gate makes is a
+# one-section diff and not a different policy. Everything else -- limits, severities, restricted lists
+# -- is byte-identical to that file. Nothing was weakened to make room for the new check.
+#
+# WHAT THE EV GATE ADDS, in one sentence: `structure_valid` proves the position's max loss is a
+# computable number; `expected_value` asks whether that number is worth accepting, and refuses when the
+# arithmetic says no.
+#
+# THE FLOORS BELOW WERE FIXED BEFORE THE GATE WAS EVER RUN against a live proposal, and are not tuned
+# to any position. The derivation of each one from first principles -- including the candidate values
+# that were considered and rejected, and why each floor is set at the LOOSEST defensible level rather
+# than the strictest -- is in docs/EV-GATE.md section 4. Read that before changing a number here.
+#
+# Moving a floor to make a specific trade pass is forbidden. It is also self-defeating: the identity
+# `EV / width = POP - (1 - credit_to_width)` means a credit spread priced at the market's own implied
+# probability has an expected value of exactly zero, so a floor loosened far enough to admit anything
+# admits a coin flip with a worse payoff than a coin flip.
+
+policy_id: options-ev-gated
+policy_version: "1.0.0"
+tenant_id: tenant-a
+
+order:
+  max_notional: 10000.00
+  max_quantity: 20
+  max_legs: 4
+
+portfolio:
+  max_single_symbol_pct: 0.15
+  max_sector_concentration_pct: 0.25
+  max_drawdown_pct: 0.20
+  max_buying_power_utilization: 0.80
+
+# Explicitly null, exactly as in options-defined-risk.yaml: this data tier carries no greeks and no
+# implied volatility (feed=opra returns HTTP 403, "OPRA agreement is not signed"), and a policy that
+# named an `options` section would block every option order on GREEKS_MISSING. Saying the absence out
+# loud is the point.
+#
+# The EV gate inherits that limitation honestly rather than working around it. Without a volatility
+# input it cannot form a probability, and a credit spread with no independent probability estimate has
+# an expected value of exactly zero before costs -- so it BLOCKS (E2), it does not guess. On this tier
+# the credit-to-width floor is the part that still bites, and it is the part that needs no vol at all.
+options: null
+
+restricted:
+  symbols: ["GME", "AMC"]
+  strategies: []
+
+# The expected-value floors. See docs/EV-GATE.md section 4 for the derivation of each.
+ev:
+  # Payoff structure and error budget. At 0.20 a trade must be right 80% of the time to break even;
+  # at the 0.114 of the position this gate was first pointed at, it must be right 88.6% of the time,
+  # which is finer than a normal approximation on backward-looking vol can resolve. Deliberately the
+  # loosest of the three candidates considered (0.333 practitioner-standard / 0.25 / 0.20).
+  min_credit_to_width: "0.20"
+  # An identity check, not a quality bar: below a coin flip this is not premium selling, it is a
+  # directional bet with capped upside and a much larger capped downside, and it should be argued for
+  # as one. Set barely above 0.50 on purpose.
+  min_pop: "0.55"
+  # The edge itself, per occurrence, on the capital actually at risk. Below ~5% the SIGN of EV is
+  # inside the combined error of an upward-biased POP and unmodelled friction -- the edge is not small,
+  # it is unmeasurable. A floor is the level below which a trade is definitely not worth doing, not the
+  # level at which it becomes attractive; 0.10 and 0.20 were rejected for being the latter.
+  min_ev_to_max_loss: "0.05"
+
+checks:
+  capital_threshold: {enabled: true, severity: blocking}
+  position_limit: {enabled: true, severity: blocking}
+  concentration_limit: {enabled: true, severity: warning}
+  duplicate_order: {enabled: true, severity: blocking, window_seconds: 60}
+  erroneous_order:
+    enabled: true
+    severity: blocking
+    price_deviation_threshold: 0.20
+    quantity_deviation_threshold: 5.0
+  # Blocking, not warning. A warning here would cap the size of a trade the engine has just computed to
+  # be expected-value-negative -- and a smaller negative-expectancy trade is still a negative-expectancy
+  # trade. There is no quantity at which bad arithmetic becomes good arithmetic, so the only honest
+  # severities are "blocking" or "off".
+  expected_value: {enabled: true, severity: blocking}
+
+advisory:
+  enabled: true
+  profile: standard_advisory
+  authority_ceiling: reduce_or_reject
+
+authorization:
+  ttl_seconds: 15
+
+fail_closed:
+  on_advisory_unavailable: false

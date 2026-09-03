@@ -1569,6 +1569,34 @@
       "title": "ExecutionResult",
       "type": "object"
     },
+    "ExpectedValuePolicy": {
+      "additionalProperties": false,
+      "description": "Floors for the expected-value gate. Derived from first principles in ``docs/EV-GATE.md``.\n\nEvery floor is a ``RatioStr``, so none of them can be set negative. That is deliberate for\n``min_ev_to_max_loss`` in particular: a negative floor would configure a gate that permits a trade\nthe engine has just computed to be expected-value-negative, which is not a risk appetite but a\ncontradiction. The contract refuses to express it.",
+      "properties": {
+        "min_credit_to_width": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Min Credit To Width",
+          "type": "string"
+        },
+        "min_pop": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Min Pop",
+          "type": "string"
+        },
+        "min_ev_to_max_loss": {
+          "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$",
+          "title": "Min Ev To Max Loss",
+          "type": "string"
+        }
+      },
+      "required": [
+        "min_credit_to_width",
+        "min_pop",
+        "min_ev_to_max_loss"
+      ],
+      "title": "ExpectedValuePolicy",
+      "type": "object"
+    },
     "FactorPolicy": {
       "additionalProperties": false,
       "properties": {
@@ -2687,6 +2715,17 @@
           "anyOf": [
             {
               "$ref": "#/$defs/FactorPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ev": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExpectedValuePolicy"
             },
             {
               "type": "null"

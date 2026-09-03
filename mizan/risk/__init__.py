@@ -26,9 +26,10 @@ from mizan.contracts import (
     sorted_reason_codes,
 )
 from mizan.risk.checks import CHECK_FUNCTIONS, MISSING_DATA_CODES, CheckFunction
+from mizan.risk.expected_value import expected_value
 from mizan.risk.valuation import ZERO, divide, exposure_of, floor_units, multiply
 
-__all__ = ["DEFERRED_CHECKS", "IMPLEMENTED_CHECKS", "evaluate"]
+__all__ = ["CHECK_REGISTRY", "DEFERRED_CHECKS", "IMPLEMENTED_CHECKS", "evaluate"]
 
 #: Checks this engine build actually implements. A policy that enables anything outside this set is
 #: refused at load time (CHECK_NOT_IMPLEMENTED) rather than silently skipped -- an unimplemented check
@@ -77,7 +78,19 @@ IMPLEMENTED_CHECKS: frozenset[str] = frozenset(
         "account_capability",
         # F-31
         "structure_valid",
+        # EV-GATE
+        "expected_value",
     }
+)
+
+#: The dispatch table. ``expected_value`` lives in its own module rather than ``checks.py`` because it
+#: carries a normal CDF and a square root that nothing else needs, so it is registered here instead of
+#: being folded into a registry that has no other reason to know about it.
+CHECK_REGISTRY: dict[str, CheckFunction] = {**CHECK_FUNCTIONS, "expected_value": expected_value}
+assert set(CHECK_REGISTRY) == set(IMPLEMENTED_CHECKS), (
+    "every implemented check must have exactly one function, or the engine would KeyError on a policy "
+    "that enabled it: "
+    f"{sorted(set(IMPLEMENTED_CHECKS) ^ set(CHECK_REGISTRY))}"
 )
 
 #: Deferred to Sprint 3+. Enumerated so the gap is visible rather than implied.
@@ -149,7 +162,7 @@ def _run(check_id: str, proposal: TradeProposal, context: RiskContext, policy: P
         return _informational(check_id, DEFERRED_DETAIL)
     if not policy.is_check_enabled(check_id):
         return _informational(check_id, DISABLED_DETAIL)
-    function: CheckFunction = CHECK_FUNCTIONS[check_id]
+    function: CheckFunction = CHECK_REGISTRY[check_id]
     result = function(proposal, context, policy)
     if result is None:
         return CheckResult(
