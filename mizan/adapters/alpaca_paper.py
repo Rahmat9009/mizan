@@ -99,6 +99,33 @@ def _assert_paper_client(client: Any) -> None:
         )
 
 
+#: Alpaca stamps every paper account number with this prefix. A live account never carries it.
+PAPER_ACCOUNT_PREFIX = "PA"
+
+
+def _assert_paper_account(account: Any) -> None:
+    """The SECOND paper signal: the account itself must say it is a paper account.
+
+    The base-URL check (F-19) proves where the request is going. It cannot prove what is waiting there:
+    a correct-looking host with a live account behind it passes it. Alpaca prefixes every paper account
+    number with ``PA``, so the account is asked to identify itself and the two signals must AGREE.
+
+    An absent, empty or non-``PA`` account number is refused, for the same reason an absent
+    ``ALPACA_PAPER`` is: silence is not permission, and this is the one decision where a permissive
+    default is unacceptable. Never proceed on one signal.
+    """
+    raw = getattr(account, "account_number", None)
+    number = "" if raw is None else str(raw).strip()
+    if not number.startswith(PAPER_ACCOUNT_PREFIX):
+        raise LiveTradingForbidden(
+            message="The broker account does not identify itself as a paper account.",
+            detail=(
+                "account_number is absent or does not carry the paper prefix; the base URL and the "
+                "account must agree and this build proceeds on neither alone"
+            ),
+        )
+
+
 def _decimal_str(value: Any) -> str | None:
     """Any SDK number into a canonical DecimalStr, or None when the SDK said nothing.
 
@@ -205,6 +232,8 @@ class AlpacaPaperBroker:
     def get_portfolio_snapshot(self, *, as_of: datetime) -> PortfolioSnapshot:
         """Account and positions, mapped into the contract. Absent numbers stay absent (E2)."""
         account = _call(self._client.get_account)
+        # Both paper signals, on every account read: where the request goes, and what answered.
+        _assert_paper_account(account)
         raw_positions = _call(self._client.get_all_positions)
         positions = [_position_of(raw) for raw in raw_positions or ()]
         return PortfolioSnapshot(
@@ -289,6 +318,9 @@ class AlpacaPaperBroker:
         is about to carry the request, at the moment it carries it.
         """
         _assert_paper_client(self._client)
+        # The account is re-asked at the mutation boundary too. One extra read is a cheap price for
+        # never submitting into an account that has not just identified itself as paper.
+        _assert_paper_account(_call(self._client.get_account))
         if len(request.legs) != 1:
             raise BrokerError(
                 "Multi-leg submission is not supported by this adapter.",

@@ -53,8 +53,10 @@ class FakeClient:
 
     def __init__(self, base_url: str = PAPER_BASE_URL) -> None:
         self._base_url = base_url
+        # account_number carries Alpaca's paper prefix: the SECOND paper signal. A fake without one
+        # is a fake of a LIVE account, which is exactly what the adapter must refuse.
         self.account = _obj(equity="100000.00", cash="79395.12", buying_power="158790.24",
-                            maintenance_margin="10302.50")
+                            maintenance_margin="10302.50", account_number="PA3ABCDEFGHI")
         self.positions: list[Any] = []
         self.orders: dict[str, Any] = {}
         self.submitted: list[Any] = []
@@ -255,7 +257,9 @@ def test_the_portfolio_snapshot_is_contract_types_all_the_way_down():
 
 def test_a_missing_required_account_number_is_a_broker_error_not_a_zero():
     client = FakeClient()
-    client.account = _obj(equity=None, cash=None, buying_power=None)
+    # account_number is present and valid: this test is about a missing NUMBER (equity/cash), and
+    # without it the two-signal paper guard would fire first and mask what is being asserted.
+    client.account = _obj(equity=None, cash=None, buying_power=None, account_number="PA3ABCDEFGHI")
     with pytest.raises(BrokerError):
         AlpacaPaperBroker(client).get_portfolio_snapshot(as_of=NOW)
 
@@ -341,3 +345,108 @@ def test_a_multi_leg_request_is_refused_rather_than_silently_partially_submitted
     with pytest.raises(BrokerError):
         broker.submit_order(request)
     assert client.submitted == []
+
+
+# ---------------------------------------------------------------------------------------------------
+# M3: the paper proof is TWO signals, and both must agree
+# ---------------------------------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "account_number",
+    [None, "", "   ", "123456789", "LIVE-123", "pa-lowercase", "XPA123"],
+)
+def test_an_account_that_does_not_identify_itself_as_paper_is_refused(account_number):
+    """Signal 2. The base URL proves where the request GOES; it cannot prove what is waiting there.
+
+    A correct paper host with a live account behind it passes the URL check, which is why one signal is
+    not enough. Absent, empty or non-PA is refused - silence is not permission.
+    """
+    client = FakeClient()
+    client.account = _obj(equity="1", cash="1", account_number=account_number)
+    broker = AlpacaPaperBroker(client)
+    with pytest.raises(LiveTradingForbidden):
+        broker.get_portfolio_snapshot(as_of=NOW)
+
+
+@pytest.mark.parametrize("account_number", [" PA123 ", "PA123\n", "\tPA123"])
+def test_surrounding_whitespace_is_normalised_rather_than_treated_as_live(account_number):
+    """Deliberate: an SDK that pads a field has not handed us a live account, and refusing on that
+    would be a false positive on a safety control - which has its own cost. The prefix test runs on
+    the trimmed value; anything that is not PA after trimming is still refused above."""
+    client = FakeClient()
+    client.account = _obj(equity="1", cash="1", account_number=account_number)
+    assert AlpacaPaperBroker(client).get_portfolio_snapshot(as_of=NOW).equity == "1"
+
+
+def test_both_signals_together_are_accepted():
+    """Control: the refusals above must be caused by the account number, not by the check refusing all."""
+    broker = AlpacaPaperBroker(FakeClient())
+    snapshot = broker.get_portfolio_snapshot(as_of=NOW)
+    assert snapshot.equity == "100000"
+
+
+def test_the_account_signal_is_re_derived_at_the_mutation_boundary_too():
+    """An account that stops looking like paper between the read and the submit must stop the submit."""
+    client = FakeClient()
+    broker = AlpacaPaperBroker(client)
+    broker.get_portfolio_snapshot(as_of=NOW)  # passes: both signals agree
+
+    client.account = _obj(equity="1", cash="1", account_number="LIVE-999")
+    with pytest.raises(LiveTradingForbidden):
+        broker.submit_order(_request())
+    assert client.submitted == [], "nothing may reach the venue once a signal disagrees"
+
+
+def test_a_paper_url_with_a_live_account_is_refused_on_the_second_signal():
+    """The exact case one signal cannot catch, stated as its own test so it cannot be optimised away."""
+    client = FakeClient(base_url=PAPER_BASE_URL)  # signal 1 agrees
+    client.account = _obj(equity="1", cash="1", account_number="9876543210")  # signal 2 does not
+    with pytest.raises(LiveTradingForbidden):
+        AlpacaPaperBroker(client).get_portfolio_snapshot(as_of=NOW)
+
+
+# ---------------------------------------------------------------------------------------------------
+# M3: every numeric crosses the boundary as text, never as a float (INV-15)
+# ---------------------------------------------------------------------------------------------------
+def test_no_float_appears_anywhere_in_the_account_parse_path():
+    """Alpaca returns every numeric as a STRING. Parsing it through float would silently reshape a
+    price nobody quoted; a float anywhere in this path is an INV-15 violation."""
+    import ast
+    import inspect
+
+    import mizan.adapters.alpaca_paper as module
+
+    tree = ast.parse(inspect.getsource(module))
+    offenders = [
+        f"line {node.lineno}: float(...)"
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "float"
+    ]
+    offenders += [
+        f"line {node.lineno}: float literal {node.value!r}"
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, float)
+    ]
+    assert not offenders, f"the adapter must never touch a binary float: {offenders}"
+
+
+def test_sdk_numerics_are_parsed_through_text_not_through_binary_floating_point():
+    """The specific failure this prevents: 0.1 + 0.2 arithmetic on a quoted price."""
+    client = FakeClient()
+    client.account = _obj(
+        equity="100000.10", cash="0.30", buying_power="0.10", account_number="PA3ABCDEFGHI"
+    )
+    snapshot = AlpacaPaperBroker(client).get_portfolio_snapshot(as_of=NOW)
+    assert snapshot.equity == "100000.1"
+    assert snapshot.cash == "0.3"
+    assert snapshot.buying_power == "0.1"
+    assert isinstance(snapshot.equity, str), "money crosses the boundary as text (A6)"
+
+
+def test_a_float_from_a_misbehaving_sdk_is_still_parsed_through_its_text():
+    """Defence in depth: if the SDK ever hands back a float, it goes through str() rather than being
+    fed to Decimal directly, so the value is the one the vendor printed."""
+    client = FakeClient()
+    client.account = _obj(equity=100000.5, cash=0.25, account_number="PA3ABCDEFGHI")
+    snapshot = AlpacaPaperBroker(client).get_portfolio_snapshot(as_of=NOW)
+    assert snapshot.equity == "100000.5"
+    assert snapshot.cash == "0.25"
