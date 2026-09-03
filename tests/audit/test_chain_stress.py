@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 
 from mizan.audit import SqliteLedger
+from mizan.contracts.canonical import record_hash_for
 from tests.audit._helpers import append_record, drop_every_trigger
 from tests.fixtures import TENANT_A
 
@@ -246,3 +247,72 @@ def _triggers(db: Path) -> list[str]:
         ]
     finally:
         connection.close()
+
+
+# -- the head record: the one position nothing links to ---------------------------------------------
+
+
+def _forge_head(db: Path, mutate) -> None:
+    """Rewrite the last record and recompute its OWN audit_hash, so it is internally consistent."""
+    payload = json.loads(_raw(db, LINKS))
+    mutate(payload)
+    payload["audit_hash"] = record_hash_for(
+        {key: value for key, value in payload.items() if key != "audit_hash"}
+    )
+    _write(db, LINKS, _canonical(payload))
+
+
+def test_forging_a_field_bound_by_another_derived_hash_is_still_caught(chain):
+    """Changing the verdict fails even on the head, because verdict_hash independently covers it.
+
+    Worth knowing before reading the next test: the record's other derived hashes are doing real work,
+    and the exposure below is narrower than "the head record can say anything".
+    """
+    root, db = chain
+    _forge_head(db, lambda p: p.update(verdict="REJECT" if p["verdict"] != "REJECT" else "APPROVE"))
+
+    assert _verify(root).ok is False
+
+
+@pytest.mark.parametrize(
+    ("label", "mutate"),
+    [
+        ("backdate when the decision was recorded",
+         lambda p: p.update(recorded_at="2099-01-01T00:00:00.000000Z")),
+        ("rewrite what the agent said it was doing",
+         lambda p: p["proposal"].update(reasoning="because the CEO said so")),
+        ("rewrite the library versions the decision ran on",
+         lambda p: p.update(library_versions={**p["library_versions"], "python": "9.9.9"})),
+    ],
+)
+def test_forging_the_head_record_is_not_caught_by_the_chain(chain, label, mutate):
+    """A KNOWN LIMITATION, and the same one as truncation wearing a different hat.
+
+    Every record is protected by the record AFTER it, which carries its hash. The last record has no
+    record after it, so a forgery there - recomputing its own audit_hash so it stays self-consistent -
+    leaves a chain that verifies. Backdating `recorded_at` on the head is the version of this that
+    matters: it changes WHEN a decision was made, and nothing in the file contradicts it.
+
+    Fields covered by another derived hash (the verdict, via verdict_hash) survive this; the ones
+    tested here do not. The mitigation is the same anchor truncation needs, for the same reason - the
+    head is the position no internal structure can defend, so the defence has to be external.
+    """
+    root, db = chain
+    _forge_head(db, mutate)
+
+    assert _verify(root).ok is True, f"if this fails, {label} became detectable - update the docs"
+
+
+def test_the_head_anchor_catches_a_forged_head(chain):
+    """Which is why the head is printed on every successful verification and --expect-head exists."""
+    root, db = chain
+    before = _verify(root)
+
+    assert drop_every_trigger(db)
+    _forge_head(db, lambda p: p.update(recorded_at="2099-01-01T00:00:00.000000Z"))
+    after = _verify(root)
+
+    assert after.ok is True, "internally consistent, which is the whole problem"
+    assert after.head_hash != before.head_hash, (
+        "a forged head must move the head hash, or the anchor could not detect it"
+    )
