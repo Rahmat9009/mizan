@@ -15,7 +15,7 @@ import pytest
 
 from mizan import risk
 from tests.fixtures import make_account_state, make_option_proposal, make_proposal
-from tests.invariants._support import codes, context_for, path_and_aggregate_policy
+from tests.invariants._support import codes, path_and_aggregate_policy, unstressed_context
 
 
 def _check(context, policy=None, proposal=None):
@@ -24,9 +24,35 @@ def _check(context, policy=None, proposal=None):
     return evaluation, next(c for c in evaluation.checks if c.check_id == "account_capability")
 
 
-def _context(**account_overrides):
+def _context(*, portfolio_snapshot=None, **account_overrides):
     policy = path_and_aggregate_policy()
-    return context_for(policy, account_state=make_account_state(**account_overrides)), policy
+    overrides = {"account_state": make_account_state(**account_overrides)}
+    if portfolio_snapshot is not None:
+        overrides["portfolio_snapshot"] = portfolio_snapshot
+    # unstressed_context, not bare context_for: path_and_aggregate_policy() has both sections
+    # enabled, so a bare context is missing state those OTHER checks need and blocks for reasons
+    # that have nothing to do with account capability - masking exactly what these tests assert.
+    return unstressed_context(policy, **overrides), policy
+
+
+def _held_long(symbol, quantity):
+    from tests.fixtures import make_portfolio_snapshot
+
+    return make_portfolio_snapshot(
+        positions=[
+            {
+                "symbol": symbol,
+                "asset_class": "equity",
+                "quantity": str(quantity),
+                "market_value": str(quantity * 229),
+                "sector": "Technology",
+                "occ_symbol": None,
+                "delta": None,
+                "gamma": None,
+                "vega": None,
+            }
+        ]
+    )
 
 
 # --- the happy path, and it carries evidence (INV-26) ----------------------------------------------
@@ -65,7 +91,7 @@ def test_an_unreported_flag_blocks_rather_than_being_read_as_permission(field):
 
 def test_a_missing_account_state_entirely_blocks():
     policy = path_and_aggregate_policy()
-    _, check = _check(context_for(policy, account_state=None), policy)
+    _, check = _check(unstressed_context(policy, account_state=None), policy)
     assert check.passed is False
     assert str(check.reason_code) == "ACCOUNT_STATE_MISSING"
 
@@ -111,6 +137,19 @@ def test_a_sufficient_options_level_passes_and_records_the_comparison():
 
 
 # --- shorting --------------------------------------------------------------------------------------
+def _sell_proposal(quantity: int):
+    payload = make_proposal().model_dump(mode="json")
+    payload.pop("proposal_id", None)
+    payload.pop("total_quantity", None)
+    leg = payload["legs"][0]
+    payload["strategy"] = "short_equity"
+    payload["intent"] = "open"
+    payload["legs"] = [{**leg, "side": "sell", "quantity": str(quantity)}]
+    from mizan.contracts import TradeProposal
+
+    return TradeProposal.build(**payload)
+
+
 def _short_proposal():
     payload = make_proposal().model_dump(mode="json")
     payload.pop("proposal_id", None)
@@ -130,18 +169,70 @@ def test_an_opening_short_on_an_account_that_may_not_short_blocks():
     assert str(check.reason_code) == "SHORTING_NOT_PERMITTED"
 
 
-def test_a_closing_sell_is_not_a_short_and_is_not_blocked():
-    """Blocking a CLOSE would strand a position on an account whose shorting permission was withdrawn -
-    a control causing the exact harm it exists to prevent."""
+def test_a_sell_fully_covered_by_a_held_long_is_not_a_short_and_is_not_blocked():
+    """Selling no more than what is held closes a position; it needs no shorting permission at all -
+    this is now derived from the PORTFOLIO, not from the caller's `intent` label. Blocking it would
+    strand a position on an account whose shorting permission was withdrawn, which is the exact harm
+    this check exists to prevent."""
+    context, policy = _context(shorting_enabled=False, portfolio_snapshot=_held_long("AAPL", 10))
+    _, check = _check(context, policy, _short_proposal())  # sells 10, exactly what is held
+    assert check.passed is True, "a fully-covered close must remain possible"
+
+
+def test_intent_close_with_nothing_held_is_not_exempted():
+    """`intent` is a label the caller chose; it is no longer trusted on its own. A "close" with no
+    matching position held is indistinguishable from a short and must be treated as one."""
     payload = _short_proposal().model_dump(mode="json")
     payload.pop("proposal_id", None)
     payload.pop("total_quantity", None)
     payload["intent"] = "close"
     from mizan.contracts import TradeProposal
 
-    context, policy = _context(shorting_enabled=False)
+    context, policy = _context(shorting_enabled=False)  # no held position at all
     _, check = _check(context, policy, TradeProposal.build(**payload))
-    assert check.passed is True, "a closing sell must remain possible"
+    assert check.passed is False
+    assert str(check.reason_code) == "SHORTING_NOT_PERMITTED"
+
+
+def test_selling_more_than_held_reduces_to_the_closing_quantity_not_a_silent_resize():
+    """The brief's exact scenario: long 10, sell 15, shorting withdrawn. 10 closes the position and
+    needs no permission; the excess 5 is a short the account may not open. The result must be a REDUCE
+    to 10, carrying SHORTING_NOT_PERMITTED - never a silent cut, and never a REJECT of the whole order
+    when part of it is perfectly fine."""
+    context, policy = _context(shorting_enabled=False, portfolio_snapshot=_held_long("AAPL", 10))
+    proposal = _sell_proposal(15)
+    evaluation = risk.evaluate(proposal, context, policy)
+    check = next(c for c in evaluation.checks if c.check_id == "account_capability")
+
+    assert check.passed is False
+    assert str(check.reason_code) == "SHORTING_NOT_PERMITTED"
+    assert check.recommended_quantity == "10", "the cap must be exactly the closing quantity"
+    assert check.actual == "5", "the excess (the actual short) is what gets reported, not the whole 15"
+
+    assert evaluation.verdict == "REDUCE", "part of the order is fine; REJECTing all of it is wrong"
+    assert evaluation.recommended_quantity == "10"
+    assert "SHORTING_NOT_PERMITTED" in codes(evaluation)
+
+
+def test_selling_more_than_held_with_nothing_at_all_held_rejects_outright():
+    """The degenerate case of the same scenario: long 0, sell 15. The closing quantity is 0, a REDUCE
+    to zero is semantically a REJECT (ESC-1's rule, applied here at the deterministic-check level), and
+    the aggregate verdict must actually be REJECT, not a REDUCE that authorizes nothing while claiming to."""
+    context, policy = _context(shorting_enabled=False)  # nothing held
+    evaluation = risk.evaluate(_sell_proposal(15), context, policy)
+    check = next(c for c in evaluation.checks if c.check_id == "account_capability")
+    assert check.passed is False
+    assert check.recommended_quantity == "0"
+    assert evaluation.verdict == "REJECT"
+    assert evaluation.recommended_quantity == "0"
+
+
+def test_a_short_that_stays_within_a_larger_long_never_reaches_the_permission_question():
+    """Selling LESS than what is held asks nothing of the shorting permission - the state is not even
+    consulted, so a broker that never reported shorting_enabled must not block a partial close."""
+    context, policy = _context(shorting_enabled=None, portfolio_snapshot=_held_long("AAPL", 10))
+    _, check = _check(context, policy, _sell_proposal(4))
+    assert check.passed is True
 
 
 def test_a_long_order_is_unaffected_by_shorting_permission():
@@ -158,6 +249,6 @@ def test_without_an_account_section_the_check_is_not_evaluated():
     policy = make_policy()
     assert policy.account is None
     assert not policy.is_check_enabled("account_capability")
-    evaluation = risk.evaluate(make_proposal(), context_for(policy), policy)
+    evaluation = risk.evaluate(make_proposal(), unstressed_context(policy), policy)
     result = next(c for c in evaluation.checks if c.check_id == "account_capability")
     assert result.severity != "blocking" or result.passed

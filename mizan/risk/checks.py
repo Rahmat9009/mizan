@@ -1941,25 +1941,59 @@ def account_capability(
                 ),
             )
 
-    # A closing sell is not a short. Blocking one would strand a position on an account that had its
-    # shorting permission withdrawn - a control causing the harm it exists to prevent.
-    opening_short = proposal.intent != "close" and any(leg.side == "sell" for leg in proposal.legs)
-    if account.require_shorting_enabled_for_short_legs and opening_short:
-        if state.shorting_enabled is None:
-            return missing(
-                "account_capability",
-                ReasonCode.ACCOUNT_STATE_MISSING,
-                "the broker did not report whether shorting is enabled",
-                snapshot_ts=state.as_of,
+    # NET-POSITION AWARE, not "any non-close sell is a short". `proposal.intent` is a label the caller
+    # chose; the truth is in the portfolio. Selling 15 against a held 10 is a close of the 10 PLUS a
+    # short of the 5 - the close needs no permission at all, and only the excess is a short. Deriving
+    # this from state rather than trusting the declared intent matches the discipline F-1/F-2 already
+    # apply to valuation: a safety-critical fact is computed from context, never taken on the caller's
+    # word (Alpaca does not represent a simultaneous long and short in one equity symbol, so held-long
+    # minus sold is a complete accounting, not an approximation).
+    if account.require_shorting_enabled_for_short_legs and proposal.asset_class == "equity":
+        sell_quantity = sum(
+            (dec(leg.quantity) for leg in proposal.legs if leg.side == "sell"), start=ZERO
+        )
+        if sell_quantity > ZERO:
+            portfolio = context.portfolio_snapshot
+            held_long = (
+                ZERO
+                if portfolio is None
+                else sum(
+                    (
+                        dec(position.quantity)
+                        for position in portfolio.positions
+                        if position.symbol == proposal.symbol and dec(position.quantity) > ZERO
+                    ),
+                    start=ZERO,
+                )
             )
-        if not state.shorting_enabled:
-            return fail(
-                "account_capability",
-                policy,
-                ReasonCode.SHORTING_NOT_PERMITTED,
-                snapshot_ts=state.as_of,
-                detail="the account may not sell short and this proposal opens a short leg",
-            )
+            short_excess = sell_quantity - held_long
+            if short_excess > ZERO:
+                if state.shorting_enabled is None:
+                    return missing(
+                        "account_capability",
+                        ReasonCode.ACCOUNT_STATE_MISSING,
+                        "the broker did not report whether shorting is enabled",
+                        snapshot_ts=state.as_of,
+                    )
+                if not state.shorting_enabled:
+                    # The closing portion needs no permission and must not be swept up with the short
+                    # excess it did not ask for (E5: never a silent resize - the cap and its reason
+                    # code are both recorded, and the authorization layer re-authorizes against it).
+                    closing_quantity = sell_quantity - short_excess
+                    return reduce_to(
+                        "account_capability",
+                        policy,
+                        ReasonCode.SHORTING_NOT_PERMITTED,
+                        floor_units(closing_quantity),
+                        threshold=ZERO,
+                        actual=short_excess,
+                        snapshot_ts=state.as_of,
+                        detail=(
+                            f"the account may not sell short; {dstr(closing_quantity)} of "
+                            f"{dstr(sell_quantity)} closes the held position, {dstr(short_excess)} "
+                            "would open a short"
+                        ),
+                    )
 
     return ok(
         "account_capability",
