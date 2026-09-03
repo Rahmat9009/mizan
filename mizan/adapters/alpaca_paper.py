@@ -22,6 +22,8 @@ import os
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
+from functools import reduce
+from math import gcd
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
@@ -41,6 +43,7 @@ from mizan.contracts import (
     normalize_ts,
 )
 from mizan.contracts.errors import BrokerError, ConfigurationError, LiveTradingForbidden
+from mizan.contracts.types import dec
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     pass
@@ -375,15 +378,13 @@ class AlpacaPaperBroker:
         # The account is re-asked at the mutation boundary too. One extra read is a cheap price for
         # never submitting into an account that has not just identified itself as paper.
         _assert_paper_account(_call(self._client.get_account))
-        if len(request.legs) != 1:
-            raise BrokerError(
-                "Multi-leg submission is not supported by this adapter.",
-                reason_codes=[ReasonCode.BROKER_REJECTED],
-                detail=f"{len(request.legs)} legs",
-            )
-        leg = request.legs[0]
         from alpaca.trading.enums import OrderSide, TimeInForce
         from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
+
+        if len(request.legs) > 1:
+            return self._submit_multi_leg(request)
+
+        leg = request.legs[0]
 
         symbol = leg.occ_symbol if leg.occ_symbol is not None else leg.symbol
         common: dict[str, Any] = {
@@ -406,10 +407,108 @@ class AlpacaPaperBroker:
             raise _broker_error(failure) from failure
         return _order_of(raw)
 
+    def _submit_multi_leg(self, request: OrderRequest) -> BrokerOrder:
+        """Submit a spread as ONE atomic mleg order, so no naked leg can ever exist.
+
+        The alternative - two single-leg orders - has a window in which the short leg is filled and
+        the long one is not, which is precisely the undefined-risk position `structure_valid` refuses
+        at decision time. Defending a rule in the engine and then breaking it in the adapter would be
+        worse than not having the rule.
+
+        Alpaca's mleg shape: no top-level symbol, `qty` is the number of SPREADS, and each leg carries
+        a `ratio_qty` relative to that. Mizan's legs carry absolute quantities, so the ratio is derived
+        by dividing by their GCD - a 2:2 spread is ratio 1:1 of two spreads, not two 2-lots.
+        """
+        from alpaca.trading.enums import OrderClass, OrderSide, PositionIntent, TimeInForce
+        from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest, OptionLegRequest
+
+        quantities = [int(dec(leg.quantity)) for leg in request.legs]
+        if any(q <= 0 for q in quantities):
+            raise BrokerError(
+                "A leg quantity is not a positive whole number of contracts.",
+                reason_codes=[ReasonCode.BROKER_REJECTED],
+                detail="mleg legs require whole contracts",
+            )
+        spreads = reduce(gcd, quantities)
+
+        legs = []
+        for leg, quantity in zip(request.legs, quantities, strict=True):
+            if leg.occ_symbol is None:
+                raise BrokerError(
+                    "A multi-leg order requires an OCC symbol on every leg.",
+                    reason_codes=[ReasonCode.BROKER_REJECTED],
+                    detail=f"leg {leg.leg_index} carries no occ_symbol",
+                )
+            legs.append(
+                OptionLegRequest(
+                    symbol=leg.occ_symbol,
+                    ratio_qty=quantity // spreads,
+                    side=OrderSide.BUY if leg.side == "buy" else OrderSide.SELL,
+                    # open vs close is the PROPOSAL's intent: the gate authorised this order as an
+                    # opening or closing action, and the legs inherit that rather than guessing.
+                    position_intent=(
+                        (
+                            PositionIntent.BUY_TO_OPEN
+                            if leg.side == "buy"
+                            else PositionIntent.SELL_TO_OPEN
+                        )
+                        if request.intent != "close"
+                        else (
+                            PositionIntent.BUY_TO_CLOSE
+                            if leg.side == "buy"
+                            else PositionIntent.SELL_TO_CLOSE
+                        )
+                    ),
+                )
+            )
+
+        common: dict[str, Any] = {
+            "qty": str(spreads),
+            "order_class": OrderClass.MLEG,
+            "legs": legs,
+            "time_in_force": TimeInForce.DAY,
+            "client_order_id": request.client_order_id,
+        }
+        # A NET limit across the spread. Every leg must price it or the order goes to market: a
+        # partially-priced spread would silently become a market order on the unpriced side.
+        net_limit = _net_limit_price(request, spreads)
+        order_request: Any
+        if net_limit is not None:
+            # dstr, not float: the SDK coerces to float inside its own model, which is the vendor's
+            # boundary and unavoidable - but nothing in OUR path constructs a binary fraction (A6).
+            order_request = LimitOrderRequest(limit_price=dstr(net_limit), **common)
+        else:
+            order_request = MarketOrderRequest(**common)
+        try:
+            raw = self._client.submit_order(order_data=order_request)
+        except Exception as failure:  # noqa: BLE001
+            raise _broker_error(failure) from failure
+        return _order_of(raw)
+
 
 # -----------------------------------------------------------------------------------------------
 # SDK -> contract mapping. Everything below turns a vendor object into a Mizan object exactly once.
 # -----------------------------------------------------------------------------------------------
+def _net_limit_price(request: OrderRequest, spreads: int) -> Decimal | None:
+    """The spread's NET limit PER SPREAD: debits paid minus credits received, at the leg RATIOS.
+
+    Per spread, not per order. Alpaca prices an mleg order per spread and multiplies by ``qty``, so
+    summing the legs at their absolute quantities would submit N times the intended debit - a 2-lot
+    of a 2.40 spread would go in at 4.80 and pay double. The ratio is what the price attaches to.
+
+    ``None`` when any leg lacks a limit: a spread priced on only some of its legs is not a limit
+    order, and treating it as one would let the unpriced side fill at any price.
+    """
+    total = Decimal(0)
+    for leg in request.legs:
+        if leg.limit_price is None or leg.order_type != "limit":
+            return None
+        ratio = dec(leg.quantity) / spreads
+        signed = dec(leg.limit_price) if leg.side == "buy" else -dec(leg.limit_price)
+        total += signed * ratio
+    return total
+
+
 def _call(method: Any) -> Any:
     try:
         return method()

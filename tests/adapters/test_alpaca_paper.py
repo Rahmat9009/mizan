@@ -330,26 +330,20 @@ def test_a_broker_failure_becomes_one_machine_code_and_never_the_vendor_text():
     assert "BROKER_UNAVAILABLE" in {code.value for code in failure.value.reason_codes}
 
 
-def test_a_multi_leg_request_is_refused_rather_than_silently_partially_submitted():
+def test_a_multi_leg_request_is_submitted_atomically_not_refused():
+    """This test's premise was inverted deliberately. It used to pin the adapter's REFUSAL of a
+    multi-leg order, which was the honest behaviour while no mleg path existed - refusing beats
+    submitting two singles and holding a naked leg between fills. Now the mleg path exists, so the
+    spread goes as ONE atomic order and the refusal would be the bug. Full coverage lives in
+    tests/adapters/test_multi_leg_submission.py."""
+    from tests.adapters.test_multi_leg_submission import _spread
+
     client = FakeClient()
-    broker = AlpacaPaperBroker(client)
-    request = _request(
-        asset_class="equity_option",
-        legs=[
-            _leg(occ_symbol="AAPL260925C00230000", contract_type="call", strike="230",
-                 expiry="2026-09-25", quantity="5", limit_price="1.85"),
-            _leg(leg_index=1, side="sell", occ_symbol="AAPL260925C00240000", contract_type="call",
-                 strike="240", expiry="2026-09-25", quantity="5", limit_price="0.95"),
-        ],
-    )
-    with pytest.raises(BrokerError):
-        broker.submit_order(request)
-    assert client.submitted == []
+    AlpacaPaperBroker(client).submit_order(_spread())
+    assert len(client.submitted) == 1
+    assert str(client.submitted[0].order_class).endswith("MLEG")
 
 
-# ---------------------------------------------------------------------------------------------------
-# M3: the paper proof is TWO signals, and both must agree
-# ---------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "account_number",
     [None, "", "   ", "123456789", "LIVE-123", "pa-lowercase", "XPA123"],

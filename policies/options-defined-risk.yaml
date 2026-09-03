@@ -1,0 +1,65 @@
+# Mizan policy -- defined-risk options WITHOUT greek limits.
+#
+# Why this policy exists, stated plainly rather than buried: Alpaca's option snapshots carry no greeks
+# and no implied volatility without a signed OPRA agreement (verified against the live API:
+# feed=opra returns HTTP 403 "OPRA agreement is not signed"). `OptionsLimits` makes
+# max_portfolio_delta / gamma / vega REQUIRED, so a policy cannot enable the days-to-expiry rule while
+# leaving the greek rules unset - the section is all-or-nothing. A policy that DOES carry an options
+# section therefore blocks every option order on this data tier with GREEKS_MISSING, which is correct
+# fail-closed behaviour (E2) and is demonstrated separately in the same run.
+#
+# This policy omits that section, so the greek and DTE checks do not run. What still governs - and
+# needs no greeks at all - is the part that makes an options position defined-risk in the first place:
+#   structure_valid  every short leg covered by a long of the same type and expiry. Always on; it
+#                    takes no policy section precisely so that it cannot be configured away.
+#   order.max_notional / max_quantity / max_legs
+#   portfolio concentration, drawdown and buying-power limits
+#   duplicate_order, erroneous_order, capital_threshold, position_limit
+#
+# The trade-off is explicit: no greek ceiling and no DTE window on this tier. That is a DATA limit
+# being reported, not a control being weakened.
+
+policy_id: options-defined-risk
+policy_version: "1.0.0"
+tenant_id: tenant-a
+
+order:
+  max_notional: 10000.00
+  max_quantity: 20
+  max_legs: 4
+
+portfolio:
+  max_single_symbol_pct: 0.15
+  max_sector_concentration_pct: 0.25
+  max_drawdown_pct: 0.20
+  max_buying_power_utilization: 0.80
+
+# Explicitly null, not omitted: `options` is a REQUIRED field on Policy, so a tenant on a data tier
+# without greeks must state the absence rather than leave it implied. Saying it out loud is the point.
+options: null
+
+restricted:
+  symbols: ["GME", "AMC"]
+  strategies: []
+
+checks:
+  capital_threshold: {enabled: true, severity: blocking}
+  position_limit: {enabled: true, severity: blocking}
+  concentration_limit: {enabled: true, severity: warning}
+  duplicate_order: {enabled: true, severity: blocking, window_seconds: 60}
+  erroneous_order:
+    enabled: true
+    severity: blocking
+    price_deviation_threshold: 0.20
+    quantity_deviation_threshold: 5.0
+
+advisory:
+  enabled: true
+  profile: standard_advisory
+  authority_ceiling: reduce_or_reject
+
+authorization:
+  ttl_seconds: 15
+
+fail_closed:
+  on_advisory_unavailable: false

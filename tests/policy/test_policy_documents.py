@@ -32,7 +32,14 @@ def _load(name: str) -> Policy:
 
 
 def test_the_policies_directory_is_not_empty():
-    assert [path.name for path in DOCUMENTS] == ["institutional.yaml", "options-conservative.yaml"]
+    assert [path.name for path in DOCUMENTS] == [
+        "institutional.yaml",
+        "options-conservative.yaml",
+        # Added for the live options run: the same controls minus the greek/DTE section, because
+        # Alpaca serves no greeks without an OPRA agreement and OptionsLimits makes all three
+        # portfolio greek limits REQUIRED - so the section is all-or-nothing on that data tier.
+        "options-defined-risk.yaml",
+    ]
 
 
 @pytest.mark.parametrize("path", DOCUMENTS, ids=lambda path: path.name)
