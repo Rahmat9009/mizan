@@ -338,7 +338,14 @@ def restricted_symbol(proposal: TradeProposal, context: RiskContext, policy: Pol
             ReasonCode.RESTRICTED_SYMBOL,
             detail=f"{proposal.symbol} is on the tenant's restricted list",
         )
-    return None
+    # Returning None here would make _run fabricate a blocking PASS carrying no evidence at all -
+    # a control reporting success without saying what it checked (ESC-4 class). Say what was checked.
+    return ok(
+        "restricted_symbol",
+        policy,
+        actual=Decimal(len(policy.restricted.symbols)),
+        detail=f"{proposal.symbol} is not among the {len(policy.restricted.symbols)} restricted symbol(s)",
+    )
 
 
 def restricted_strategy(proposal: TradeProposal, context: RiskContext, policy: Policy) -> CheckResult | None:
@@ -349,7 +356,16 @@ def restricted_strategy(proposal: TradeProposal, context: RiskContext, policy: P
             ReasonCode.RESTRICTED_STRATEGY,
             detail=f"strategy {proposal.strategy} is on the tenant's restricted list",
         )
-    return None
+    # See restricted_symbol: a blocking PASS must carry the evidence it passed on.
+    return ok(
+        "restricted_strategy",
+        policy,
+        actual=Decimal(len(policy.restricted.strategies)),
+        detail=(
+            f"strategy {proposal.strategy} is not among the "
+            f"{len(policy.restricted.strategies)} restricted strategy(ies)"
+        ),
+    )
 
 
 def leg_limit(proposal: TradeProposal, context: RiskContext, policy: Policy) -> CheckResult | None:

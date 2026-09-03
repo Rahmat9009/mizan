@@ -8,7 +8,7 @@
     }
   },
   "engine_version": "mizan-core/0.1.0",
-  "fingerprint": "ea65e188865125eef6a2f6b107ade040315785154e5a007c366cd0ac5dd8f6b2",
+  "fingerprint": "80b5d53f83526145fe7c14a9e42490d122de141e34456e96facc0ddde2058c72",
   "scenarios": [
     {
       "authorized_total_quantity": "10",
@@ -104,13 +104,13 @@
       ],
       "decision_reason_codes": [],
       "decision_verdict": "APPROVE",
-      "evaluation_id": "753a8170301c55d1f914bca85ec1da73791b7f1901b5eea89545e739f798624c",
+      "evaluation_id": "753018951996191e0336a4ef4b2c619c24a2485b8b195ed113b082aaa62159d2",
       "evaluation_reason_codes": [],
       "evaluation_recommended_quantity": "10",
       "evaluation_verdict": "PASS",
       "policy_hash": "0e968a3ecd07ad31a01f362f30693fd2e25fe5aafb72204c90cdd36a9dc33a99",
       "scenario": "pass_baseline",
-      "verdict_hash": "f0aeddfbea25146e11c6440a611a95d3e9a967010577a7cf2a1dca97d036da5e"
+      "verdict_hash": "181779b6a3e54349e5298975e41da9bcdb7365735fe2578eeb554b2b77ac151b"
     },
     {
       "authorized_total_quantity": "5",
@@ -208,7 +208,7 @@
         "SIZE_SCALED_BY_DRAWDOWN"
       ],
       "decision_verdict": "REDUCE",
-      "evaluation_id": "dfae31a8e17ba2e386ca33dbf5a8a06bbfe3865a1bc78ca1c12eaf588b5a2d88",
+      "evaluation_id": "9535374deabcd7b647f15ffb293ee95ee58183c234ef696c548cb64bf62d96c3",
       "evaluation_reason_codes": [
         "SIZE_SCALED_BY_DRAWDOWN"
       ],
@@ -216,7 +216,7 @@
       "evaluation_verdict": "REDUCE",
       "policy_hash": "0e968a3ecd07ad31a01f362f30693fd2e25fe5aafb72204c90cdd36a9dc33a99",
       "scenario": "reduce_by_drawdown",
-      "verdict_hash": "a05cefdebbf061d5c1f5194decedda6550273c6e0be6c0d5e1735166880be60e"
+      "verdict_hash": "80b92121f4b8c64ad7a901e94c86959db450b416b8079bfc040914ecd3879fde"
     },
     {
       "authorized_total_quantity": "0",
@@ -315,7 +315,7 @@
         "HARD_REJECTION_UPHELD"
       ],
       "decision_verdict": "REJECT",
-      "evaluation_id": "b5fd49fafb3a6ceef285bd5a7cebc904f64a0b4d97cb7bdfcc254e3d1ec6dc82",
+      "evaluation_id": "12d84e4eeccbac3663bf4e721a3c82f42b68eeb96ff5b7ff3b1b05afd5703b9b",
       "evaluation_reason_codes": [
         "AGGREGATE_EXPOSURE_EXCEEDED"
       ],
@@ -323,7 +323,7 @@
       "evaluation_verdict": "REJECT",
       "policy_hash": "0e968a3ecd07ad31a01f362f30693fd2e25fe5aafb72204c90cdd36a9dc33a99",
       "scenario": "reject_by_aggregate",
-      "verdict_hash": "09af87cc0dd5a6c12515771b7a3d65bdfdf417a4ca83e79f07997fd946bebe9d"
+      "verdict_hash": "97ce5653833fcf2c4989ddf93a4e84beff4f699bc36c7913b9363ff7de845866"
     },
     {
       "authorized_total_quantity": "5",
@@ -419,13 +419,13 @@
       ],
       "decision_reason_codes": [],
       "decision_verdict": "APPROVE",
-      "evaluation_id": "a04788cbee661306b821915379fedcd229134c369441adbf4896a056a5cb322a",
+      "evaluation_id": "6e3e311e7576a3ff881bcd5318c119cd52ff7744da4c3bad85f0d00230f88fea",
       "evaluation_reason_codes": [],
       "evaluation_recommended_quantity": "5",
       "evaluation_verdict": "PASS",
       "policy_hash": "0e968a3ecd07ad31a01f362f30693fd2e25fe5aafb72204c90cdd36a9dc33a99",
       "scenario": "option_multi_leg",
-      "verdict_hash": "98617fe6705501b7539acbcedaaad325b078c9a92eaa69a747a4c792c4ab4af4"
+      "verdict_hash": "11cbced82457b96ec5447276d281078095efd751e76fdbfa3ee66339967fd835"
     },
     {
       "authorized_total_quantity": "10",
@@ -521,13 +521,13 @@
       ],
       "decision_reason_codes": [],
       "decision_verdict": "APPROVE",
-      "evaluation_id": "753a8170301c55d1f914bca85ec1da73791b7f1901b5eea89545e739f798624c",
+      "evaluation_id": "753018951996191e0336a4ef4b2c619c24a2485b8b195ed113b082aaa62159d2",
       "evaluation_reason_codes": [],
       "evaluation_recommended_quantity": "10",
       "evaluation_verdict": "PASS",
       "policy_hash": "0e968a3ecd07ad31a01f362f30693fd2e25fe5aafb72204c90cdd36a9dc33a99",
       "scenario": "injected_free_text",
-      "verdict_hash": "f0aeddfbea25146e11c6440a611a95d3e9a967010577a7cf2a1dca97d036da5e"
+      "verdict_hash": "181779b6a3e54349e5298975e41da9bcdb7365735fe2578eeb554b2b77ac151b"
     }
   ],
   "schema": "mizan.determinism-fingerprint/1"

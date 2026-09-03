@@ -44,6 +44,7 @@ INVARIANTS: tuple[tuple[int, str, str], ...] = (
     (22, "authorization_invalid_after_state_change", "Addendum-2/E6"),
     (23, "no_llm_in_deterministic_path", "Addendum-2/E8"),
     (24, "advisory_reduce_to_zero_is_rejected_as_invalid", "ESC-1/E1"),
+    (25, "every_enabled_check_can_actually_fail", "ESC-4/E2"),
 )
 
 _FILE_RE = re.compile(r"test_(\d{2})_[a-z_]+\.py")
