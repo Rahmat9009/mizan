@@ -93,8 +93,8 @@ def get_decision(client: Any, decision_id: str) -> DecisionRecord | None:
     """One record, or ``None`` for an id this tenant cannot see.
 
     REQ-4: ``NotFound`` is raised both for an id that does not exist and for another tenant's id, and the two
-    must never be distinguished. This function collapses them into the same ``None`` before any view sees them,
-    so no caller downstream is able to tell them apart even by accident.
+    must never be distinguished. This collapses them into the same ``None`` before any view sees them, so no
+    caller downstream is able to tell them apart even by accident.
     """
     try:
         result = read(client, ("get_decision", "get"), decision_id)

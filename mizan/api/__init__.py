@@ -23,10 +23,17 @@ brokerage account is not a convenience.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from mizan.api.auth import Principal, StaticTokenStore, TokenStore, token_digest
+from mizan.api.hardening import (
+    MAX_BODY_BYTES,
+    SECURITY_HEADERS,
+    BodyLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from mizan.api.ratelimit import FixedWindowRateLimiter, RateLimit
 from mizan.contracts import ReasonCode, TradeProposal
 from mizan.contracts.errors import (
@@ -41,8 +48,30 @@ from mizan.contracts.errors import (
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from mizan.sdk import Mizan
 
+# FastAPI is imported at module scope, not inside ``create_app``, and that placement is load-bearing.
+# This module uses ``from __future__ import annotations``, so every route annotation is a *string* that
+# FastAPI resolves against this module's globals. A ``Request`` imported into a function's locals is
+# invisible to that resolution, and FastAPI silently reinterprets ``request: Request`` as a required
+# query parameter — every route taking the request object then 422s before its first line runs. It is
+# an easy bug to ship because nothing complains at import time; tests/api/test_route_signatures.py
+# pins it.
+#
+# The import is guarded so that the package still imports, and the framework-free parts of it (the
+# token store, the rate limiter, the hardening middlewares, ``ROUTES``) still work, when the transport
+# extra is not installed. ``create_app`` is the only thing that needs FastAPI, and it says so.
+try:  # pragma: no cover - the outcome depends on the installed extras, not on the code path
+    from fastapi import Depends, FastAPI, Request, Response
+    from fastapi.responses import JSONResponse
+
+    FASTAPI_AVAILABLE = True
+except ImportError:  # pragma: no cover - exercised only without the transport extra installed
+    Depends = FastAPI = Request = Response = JSONResponse = None  # type: ignore[assignment]
+    FASTAPI_AVAILABLE = False
+
 __all__ = [
+    "MAX_BODY_BYTES",
     "ROUTES",
+    "SECURITY_HEADERS",
     "ApiConfig",
     "Principal",
     "StaticTokenStore",
@@ -81,6 +110,12 @@ class ApiConfig:
     cors_origins: tuple[str, ...] = ()
     cors_allow_credentials: bool = False
     evaluate_rate_limit: RateLimit = field(default_factory=RateLimit)
+    #: Failed authentications per client address per window. Separate from the evaluate limit because
+    #: it protects a different thing: the credential space, against an attacker who has no credential
+    #: yet and so cannot be keyed by tenant.
+    auth_rate_limit: RateLimit = field(default_factory=lambda: RateLimit(max_requests=10))
+    #: Request-body ceiling, enforced below the router by ``BodyLimitMiddleware``.
+    max_body_bytes: int = MAX_BODY_BYTES
 
     def __post_init__(self) -> None:
         for origin in self.cors_origins:
@@ -89,10 +124,19 @@ class ApiConfig:
                     message="A wildcard CORS origin is not permitted.",
                     detail=f"refused origin {origin!r}",
                 )
+        if self.cors_allow_credentials and not self.cors_origins:
+            raise ConfigurationError(
+                message="Credentialed CORS requires an explicit origin list.",
+                detail="cors_allow_credentials=True with no cors_origins",
+            )
+        if self.max_body_bytes < 1:
+            raise ConfigurationError(
+                message="The service is misconfigured.", detail="max_body_bytes must be positive"
+            )
 
 
 def create_app(
-    mizan: "Mizan | Callable[[str], Mizan]",
+    mizan: Mizan | Callable[[str], Mizan],
     *,
     tokens: TokenStore | None = None,
     config: ApiConfig | None = None,
@@ -104,14 +148,18 @@ def create_app(
     pipeline. ``tokens`` is the bearer-token store; without one the app still starts and every route
     refuses every request, which is the correct behaviour for a misconfigured deployment (fail closed).
     """
-    from fastapi import Depends, FastAPI, Request, Response
-    from fastapi.responses import JSONResponse
+    if not FASTAPI_AVAILABLE:  # pragma: no cover - exercised only without the extra installed
+        raise ConfigurationError(
+            message="The REST surface requires FastAPI; install mizan-core with its API dependencies.",
+            detail="import of fastapi failed at mizan.api import time",
+        )
 
     settings = config if config is not None else ApiConfig()
     store: TokenStore = tokens if tokens is not None else StaticTokenStore()
     resolve = mizan if callable(mizan) else (lambda _tenant_id: mizan)
     clock = _clock_of(mizan)
     limiter = FixedWindowRateLimiter(settings.evaluate_rate_limit, clock=clock)
+    auth_limiter = FixedWindowRateLimiter(settings.auth_rate_limit, clock=clock)
 
     app = FastAPI(title="Mizan", version="1.0.0", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -126,24 +174,48 @@ def create_app(
             allow_headers=["Authorization", "Content-Type"],
         )
 
+    # Added last is outermost (Starlette builds the stack in reverse), so these two wrap everything:
+    # the router, the exception handlers and CORS alike. The headers are therefore on EVERY response —
+    # a 401, a 404, a pre-flight, a 500 — which is the set a route-level decorator always misses.
+    app.add_middleware(BodyLimitMiddleware, max_bytes=settings.max_body_bytes)
+    app.add_middleware(SecurityHeadersMiddleware)
+
     # -- authentication -------------------------------------------------------------------------
     def principal_of(request: Request) -> Principal:
-        """Resolve the bearer token, or refuse. Every /v1 route depends on this (F-3)."""
+        """Resolve the bearer token, or refuse. Every /v1 route depends on this (F-3).
+
+        Failed attempts are rate limited by client address. Guessing a bearer token is the one attack
+        that needs no valid credential to start, so it is the one the limiter cannot key by tenant —
+        and a successful authentication never consumes budget, so an honest caller is never throttled
+        by someone else's guessing from a different address.
+        """
         header = request.headers.get("authorization") or ""
         scheme, _, token = header.partition(" ")
         if scheme.strip().lower() != "bearer" or not token.strip():
-            raise TenantForbidden(
-                message="A bearer token is required.", detail="missing or malformed Authorization header"
-            )
+            _refuse_credential(request, "missing or malformed Authorization header")
         found = store.resolve(token.strip())
         if found is None:
-            raise TenantForbidden(message="The credential is not valid.", detail="unknown token")
+            _refuse_credential(request, "unknown token")
         if found.is_expired(clock()):
-            raise TenantForbidden(message="The credential has expired.", detail="expired token")
+            _refuse_credential(request, "expired token")
         return found
 
+    def _refuse_credential(request: Request, detail: str) -> NoReturn:
+        """Charge the attempt to the caller's address, then refuse — identically, whatever went wrong.
+
+        One message for every failure mode. "Unknown token" and "expired token" told apart would tell
+        an attacker which of their guesses was once real.
+        """
+        client = getattr(request, "client", None)
+        key = f"auth:{getattr(client, 'host', None) or 'unknown'}"
+        if not auth_limiter.allow(key):
+            raise RateLimited(message="Too many authentication attempts.", detail=detail)
+        raise TenantForbidden(message="A valid bearer token is required.", detail=detail)
+
+    authenticated = Depends(principal_of)
+
     def require(scope: str) -> Callable[..., Principal]:
-        def dependency(principal: Principal = Depends(principal_of)) -> Principal:
+        def dependency(principal: Principal = authenticated) -> Principal:
             if not principal.has(scope):
                 raise TenantForbidden(
                     message="This credential may not perform that operation.",
@@ -153,7 +225,15 @@ def create_app(
 
         return dependency
 
-    def pipeline_for(principal: Principal) -> "Mizan":
+    # FastAPI's dependency markers, bound once. They are values, not calls in a default argument:
+    # a call there runs at definition time, which is right for FastAPI and wrong for everything else,
+    # so naming them keeps the idiom and keeps the lint rule that catches the real mistake.
+    needs_read = Depends(require(SCOPE_READ))
+    needs_evaluate = Depends(require(SCOPE_EVALUATE))
+    needs_execute = Depends(require(SCOPE_EXECUTE))
+    needs_control = Depends(require(SCOPE_CONTROL))
+
+    def pipeline_for(principal: Principal) -> Mizan:
         pipeline = resolve(principal.tenant_id)
         if pipeline is None or pipeline.tenant_id != principal.tenant_id:
             # A resolver that hands back another tenant's pipeline is a bug that would silently
@@ -180,7 +260,7 @@ def create_app(
     # -- routes ---------------------------------------------------------------------------------
     @app.post("/v1/proposals/evaluate")
     async def evaluate(
-        request: Request, principal: Principal = Depends(require(SCOPE_EVALUATE))
+        request: Request, principal: Principal = needs_evaluate
     ) -> Response:
         if not limiter.allow(f"{principal.tenant_id}:{principal.agent_id}"):
             raise RateLimited(message="Too many evaluations; slow down.")
@@ -191,14 +271,14 @@ def create_app(
 
     @app.post("/v1/decisions/{decision_id}/execute")
     async def execute(
-        decision_id: str, principal: Principal = Depends(require(SCOPE_EXECUTE))
+        decision_id: str, principal: Principal = needs_execute
     ) -> Response:
         result = pipeline_for(principal).execute(decision_id)
         return JSONResponse(status_code=200, content=result.model_dump(mode="json"))
 
     @app.get("/v1/decisions/{decision_id}")
     async def get_decision(
-        decision_id: str, principal: Principal = Depends(require(SCOPE_READ))
+        decision_id: str, principal: Principal = needs_read
     ) -> Response:
         record = pipeline_for(principal).get_decision(decision_id)
         return JSONResponse(status_code=200, content=record.model_dump(mode="json"))
@@ -207,7 +287,7 @@ def create_app(
     async def list_decisions(
         limit: int = 50,
         before_sequence: int | None = None,
-        principal: Principal = Depends(require(SCOPE_READ)),
+        principal: Principal = needs_read,
     ) -> Response:
         if limit < 1 or limit > 200:
             raise ValidationFailed(message="limit must be between 1 and 200.")
@@ -219,25 +299,25 @@ def create_app(
 
     @app.post("/v1/decisions/{decision_id}/replay")
     async def replay_decision(
-        decision_id: str, principal: Principal = Depends(require(SCOPE_READ))
+        decision_id: str, principal: Principal = needs_read
     ) -> Response:
         result = pipeline_for(principal).replay(decision_id)
         return JSONResponse(status_code=200, content=result.model_dump(mode="json"))
 
     @app.get("/v1/audit/verify")
-    async def verify(principal: Principal = Depends(require(SCOPE_READ))) -> Response:
+    async def verify(principal: Principal = needs_read) -> Response:
         verification = pipeline_for(principal).verify_chain()
         return JSONResponse(status_code=200, content=verification.model_dump(mode="json"))
 
     @app.get("/v1/policy")
-    async def policy(principal: Principal = Depends(require(SCOPE_READ))) -> Response:
+    async def policy(principal: Principal = needs_read) -> Response:
         return JSONResponse(
             status_code=200, content=pipeline_for(principal).policy.model_dump(mode="json")
         )
 
     @app.post("/v1/control/kill-switch")
     async def kill_switch(
-        request: Request, principal: Principal = Depends(require(SCOPE_CONTROL))
+        request: Request, principal: Principal = needs_control
     ) -> Response:
         payload = await _json_object(request)
         active = payload.get("active")

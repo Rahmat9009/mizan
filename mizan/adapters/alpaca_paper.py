@@ -23,6 +23,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 from mizan.adapters.base import PAPER_HOST, BrokerOrder, OrderRequest
 from mizan.contracts import (
@@ -78,9 +79,20 @@ def _first_env(names: Sequence[str]) -> str | None:
 
 
 def _assert_paper_client(client: Any) -> None:
-    """The client that will carry the request must be pointed at the paper host. Re-derived, not cached."""
-    base_url = str(getattr(client, "_base_url", "") or getattr(client, "base_url", ""))
-    if PAPER_HOST not in base_url:
+    """The client that will carry the request must be pointed at the paper host. Re-derived, not cached.
+
+    The SDK stores the base URL as an enum member, so the *value* is read rather than ``str()`` of the
+    member - a member's repr names the constant, and a check that passes on a name rather than on the
+    host it resolves to is exactly the kind of proof finding F-19 warned about.
+
+    The comparison is host *equality*, not containment: a URL whose host merely starts with the paper
+    host - ``paper-api.alpaca.markets.example.invalid`` - contains it and is not it. A client with no
+    discoverable base URL is refused for the same reason an absent ``ALPACA_PAPER`` is: silence is not
+    permission.
+    """
+    raw = getattr(client, "_base_url", None) or getattr(client, "base_url", None)
+    base_url = str(getattr(raw, "value", raw) or "")
+    if (urlsplit(base_url).hostname or "").casefold() != PAPER_HOST:
         raise LiveTradingForbidden(
             message="The broker client is not pointed at the paper endpoint.",
             detail="base url does not name the paper host",

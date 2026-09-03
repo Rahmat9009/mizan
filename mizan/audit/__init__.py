@@ -50,7 +50,6 @@ from mizan.contracts import (
 )
 from mizan.contracts._base import SKIP_HASH_CHECK
 from mizan.contracts.canonical import (
-    REDACTED,
     ZERO_HASH,
     canonical_json,
     library_versions,
@@ -77,7 +76,6 @@ __all__ = [
     "DECISION_RECORDS_DDL",
     "LEDGER_META_DDL",
     "SCHEMA_STATEMENTS",
-    "STRUCTURAL_SECTION_KEYS",
     "TENANT_ID_RE",
     "ChainEntry",
     "ChainVerification",
@@ -187,31 +185,6 @@ def verify_chain_records(records: Iterable[DecisionRecord]) -> ChainVerification
 # Redaction before persistence (Hard Rule A3, security finding F-7)
 # ---------------------------------------------------------------------------------------------------
 
-#: Contract sections whose *name* matches a sensitive key pattern but which carry structure, not a
-#: secret. ``Policy.authorization`` is the authorization-TTL section (``{"ttl_seconds": 15}``); it is a
-#: nested contract model with no ``schema_version`` of its own, so ``canonical.redact`` cannot tell it
-#: apart from an ``Authorization:`` header and replaces the whole section - which would destroy the
-#: policy hash and make the record unbuildable. The ledger recurses into these keys instead, and every
-#: scalar inside them is still redacted. Raised for L0 in ledger/requests.md.
-STRUCTURAL_SECTION_KEYS: frozenset[str] = frozenset({"authorization"})
-
-
-def _restore_structural_sections(source: Any, target: Any) -> None:
-    """Put back the *structure* of a contract section that redaction replaced wholesale."""
-    if isinstance(source, Mapping) and isinstance(target, dict):
-        for key, value in source.items():
-            if (
-                key in STRUCTURAL_SECTION_KEYS
-                and isinstance(value, (Mapping, list))
-                and target.get(key) == REDACTED
-            ):
-                target[key] = redact(value)
-            else:
-                _restore_structural_sections(value, target.get(key))
-    elif isinstance(source, list) and isinstance(target, list):
-        for item, mirrored in zip(source, target, strict=False):
-            _restore_structural_sections(item, mirrored)
-
 
 def redact_for_persistence(payload: Mapping[str, Any]) -> dict[str, Any]:
     """``canonical.redact`` over everything about to be written, keeping contract structure intact.
@@ -222,12 +195,20 @@ def redact_for_persistence(payload: Mapping[str, Any]) -> dict[str, Any]:
     legacy mistake - leaves whichever kind was forgotten (there, the verbatim model output) in the clear.
 
     ``payload`` must already be plain JSON data (every contract object dumped with ``mode="json"``), so
-    that redaction reaches every nested credential, header collection and mixed-case key rather than
-    stopping at the first pydantic model.
+    that redaction reaches every nested credential, header collection, mixed-case key and
+    credential-shaped span in free text rather than stopping at the first pydantic model.
+
+    There is no post-pass here and there must never be one again. ``canonical.redact`` used to replace
+    ``Policy.authorization`` (the TTL section) and ``CalendarState.session`` (a market session, not a
+    login session) because their NAMES read as credentials, and this module put the structure back
+    afterwards - a workaround that only ever knew about the collisions someone had already hit. L0 closed
+    it properly (ledger/requests.md REQ-3): ``redact`` now recognises a nested contract model from the
+    models' own field declarations, and keeps a value under a closed-vocabulary field only when it IS one
+    of the constants that field declares - ``session`` holding ``"open"`` survives, ``session`` holding
+    anything else does not. So what is written here is exactly what ``redact`` returned, and the hash
+    covers the same bytes a verifier will re-hash.
     """
-    redacted = redact(dict(payload))
-    _restore_structural_sections(payload, redacted)
-    return redacted
+    return redact(dict(payload))
 
 
 # ---------------------------------------------------------------------------------------------------

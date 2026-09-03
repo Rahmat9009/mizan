@@ -25,8 +25,9 @@ from __future__ import annotations
 
 import functools
 import threading
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from mizan import advisory as _advisory
 from mizan import authorization as _authorization
@@ -59,7 +60,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from mizan.execution import KillSwitch
     from mizan.replay import ReplayResult
 
-__all__ = ["EXECUTABLE_STATUSES", "Mizan"]
+__all__ = ["EXECUTABLE_STATUSES", "Mizan", "authorized_proposal"]
 
 #: Statuses that mean "the gate agreed". Everything else is a refusal, including a broker failure:
 #: an unknown outcome is never treated as a success.
@@ -75,11 +76,11 @@ class Mizan:
         tenant_id: str,
         agent: AgentIdentity,
         policy: Policy | str,
-        broker: "BrokerAdapter | None" = None,
-        ledger: "Ledger | None" = None,
-        advisory: "AdvisoryProvider | None" = None,
-        kill_switch: "KillSwitch | None" = None,
-        config: "ExecutionConfig | None" = None,
+        broker: BrokerAdapter | None = None,
+        ledger: Ledger | None = None,
+        advisory: AdvisoryProvider | None = None,
+        kill_switch: KillSwitch | None = None,
+        config: ExecutionConfig | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self.tenant_id = tenant_id
@@ -171,7 +172,12 @@ class Mizan:
             self._executions[decision_id] = result
         return result
 
-    def protected(self, fn: Callable[..., Any]) -> Callable[..., Any]:
+    def protected(
+        self,
+        fn: Callable[..., Any] | None = None,
+        *,
+        on_decision: Callable[[DecisionRecord], None] | None = None,
+    ) -> Callable[..., Any]:
         """Wrap a submit function so it runs only behind an approved, authorized decision.
 
             @mizan.protected
@@ -183,14 +189,28 @@ class Mizan:
         the function **only** if the gate reached an executable status - otherwise it raises
         ``ExecutionBlocked`` carrying the reason codes and never calls the function at all.
 
-        Pair it with ``ExecutionConfig(dry_run=True)`` (the default) when the wrapped function is the
-        thing that actually places the order: the gate then performs every check and stops one step
-        short of the mutation, leaving the submission to the caller's code.
+        Requires ``ExecutionConfig(dry_run=True)`` (the default), because in this mode the wrapped
+        function is the thing that places the order: the gate runs every check and stops one step short
+        of the mutation, and the caller's code performs it. With ``dry_run=False`` the gate submits
+        through Mizan's own broker, so calling the function as well would place the order **twice** —
+        that combination is refused rather than documented.
+
+        The function receives the **authorized** proposal, not the one the agent asked for. When the
+        governor reduced the size, the object handed down carries the reduced leg quantities, so an
+        agent cannot get its original quantity submitted by ignoring the verdict; the reduction is
+        applied to the thing that reaches the broker, not merely reported alongside it.
+
+        ``on_decision`` is called with the DecisionRecord for every evaluation, approved or refused, so
+        a caller can log or ship the decision id without changing its own function's signature.
         """
+        if fn is None:
+            return functools.partial(self.protected, on_decision=on_decision)
 
         @functools.wraps(fn)
         def guarded(proposal: TradeProposal, *args: Any, **kwargs: Any) -> Any:
             record = self.evaluate(proposal)
+            if on_decision is not None:
+                on_decision(record)
             if record.verdict == "REJECT" or record.authorization is None:
                 raise ExecutionBlocked(
                     message="The proposal was rejected by policy; nothing was submitted.",
@@ -198,21 +218,28 @@ class Mizan:
                     detail=f"decision {record.decision_id} verdict {record.verdict}",
                 )
             result = self.execute(record.decision_id)
-            if result.status not in EXECUTABLE_STATUSES:
+            if result.status == "SUBMITTED":
+                # The gate already placed this order through Mizan's broker. Running the caller's
+                # submit function too would send a second, unauthorized order for the same decision.
+                raise ConfigurationError(
+                    message="@protected requires a dry-run execution config; the gate already submitted.",
+                    detail="ExecutionConfig(dry_run=False) with @protected would double-submit",
+                )
+            if result.status != "WOULD_SUBMIT":
                 raise ExecutionBlocked(
                     message="The execution gate refused this authorization; nothing was submitted.",
                     reason_codes=list(result.reason_codes),
                     detail=f"decision {record.decision_id} status {result.status}",
                 )
-            return fn(proposal, *args, **kwargs)
+            return fn(authorized_proposal(record), *args, **kwargs)
 
         return guarded
 
     # -- reads ---------------------------------------------------------------------------------------
-    def replay(self, decision_id: str, **kwargs: Any) -> "ReplayResult":
+    def replay(self, decision_id: str, **kwargs: Any) -> ReplayResult:
         return _replay.replay(self.get_decision(decision_id), **kwargs)
 
-    def verify_chain(self) -> "ChainVerification":
+    def verify_chain(self) -> ChainVerification:
         return self._tenant_ledger().verify_chain()
 
     def get_decision(self, decision_id: str) -> DecisionRecord:
@@ -233,10 +260,10 @@ class Mizan:
         return result
 
     # -- wiring ----------------------------------------------------------------------------------------
-    def _tenant_ledger(self) -> "TenantLedger":
+    def _tenant_ledger(self) -> TenantLedger:
         return self.ledger.for_tenant(self.tenant_id)
 
-    def _require_broker(self) -> "BrokerAdapter":
+    def _require_broker(self) -> BrokerAdapter:
         if self.broker is None:
             raise ConfigurationError(
                 message="No broker is configured for this tenant.",
@@ -244,7 +271,7 @@ class Mizan:
             )
         return self.broker
 
-    def _require_context_provider(self) -> "ContextProvider":
+    def _require_context_provider(self) -> ContextProvider:
         if self.context_provider is None:
             raise ConfigurationError(
                 message="No market data source is configured for this tenant.",
@@ -264,3 +291,34 @@ class Mizan:
 
 def _utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def authorized_proposal(record: DecisionRecord) -> TradeProposal:
+    """The proposal as the governor authorized it: the original when nothing was cut, a resized copy
+    when it was.
+
+    A REDUCE that is only *reported* is not a reduction. Whatever a caller does with the object it is
+    handed, the object itself must already carry the authorized quantities, so that the smallest
+    possible mistake - passing the proposal straight through to a broker, which is exactly what the
+    ``@protected`` example does - still submits the allowed size.
+
+    The rebuilt proposal necessarily has a different ``proposal_id``: it is a different order, and
+    ``proposal_id`` is a hash of the order's content. The decision that authorized it names the
+    original id, which is what ties the two together in the ledger.
+    """
+    proposal = record.proposal
+    if record.governor_decision.verdict == "APPROVE":
+        return proposal
+    quantities = {leg.leg_index: leg.quantity for leg in record.authorized.legs}
+    if set(quantities) != {leg.leg_index for leg in proposal.legs}:
+        raise ExecutionBlocked(
+            message="The authorized order does not describe this proposal's legs.",
+            reason_codes=[ReasonCode.AUTHORIZATION_SCOPE_MISMATCH],
+            detail=f"decision {record.decision_id} authorized legs {sorted(quantities)}",
+        )
+    payload = proposal.model_dump(mode="json")
+    payload.pop("proposal_id")
+    payload["legs"] = [
+        {**leg.model_dump(mode="json"), "quantity": quantities[leg.leg_index]} for leg in proposal.legs
+    ]
+    return TradeProposal.build(**payload)

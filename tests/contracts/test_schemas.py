@@ -340,3 +340,26 @@ def test_sha256_hex_matches_a_known_digest():
     assert sha256_hex(canonical_json({"b": "1.50", "a": 1, "nested": {"z": True, "y": None}})) == (
         "41e883160fa7262424b2a2580c2e2db06c491405e1d6e92dda8e0b800694577b"
     )
+
+
+def test_an_occ_option_symbol_is_not_mistaken_for_an_alpaca_key():
+    """Regression: instrument identifiers must survive redaction, or the record cannot be built.
+
+    Alpaca key ids begin PK/AK and so do the OCC option symbols of every ticker beginning PK or AK -
+    AKAM (Akamai), PKG (Packaging Corp). Redacting one is not a cosmetic false positive: the symbol is a
+    contract-validated field, so a redacted value makes the whole DecisionRecord unbuildable and no
+    option on those underlyings can be recorded at all. Found by L2b in review.
+    """
+    for symbol in (
+        "AKAM260925C00230000",
+        "PKG260925P00120000",
+        "AKAM270116P00090000",
+        "AAPL260925C00230000",
+    ):
+        assert redact({"occ_symbol": symbol})["occ_symbol"] == symbol, symbol
+
+    # The credential shapes the pattern exists for must still be caught.
+    # Built from fragments so the fixtures are not themselves credential-shaped literals in the file.
+    for credential in ("PK" + "TEST1234567890ABCDEF", "AK" + "TEST1234567890ABCDEF",
+                       "AKIA" + "IOSFODNN7EXAMPLE"):
+        assert redact({"note": credential})["note"] == "[REDACTED]", credential

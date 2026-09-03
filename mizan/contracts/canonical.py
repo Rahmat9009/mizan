@@ -13,6 +13,7 @@ Nothing here touches binary floating point.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import importlib.metadata
 import json
@@ -26,7 +27,8 @@ import uuid
 from collections.abc import Iterable, Mapping
 from decimal import ROUND_HALF_EVEN, Context, Decimal, DivisionByZero, InvalidOperation, Overflow
 from enum import Enum
-from typing import Any
+from types import UnionType
+from typing import Any, Literal, Union, get_args, get_origin
 
 from pydantic import BaseModel
 
@@ -39,6 +41,10 @@ DECIMAL_CONTEXT = Context(prec=28, rounding=ROUND_HALF_EVEN, traps=[InvalidOpera
 IDEMPOTENCY_KEY_PREFIX = "mz1-"
 
 REDACTED = "[REDACTED]"
+#: Key tokens that name a credential. Matched as whole tokens after NFKC normalisation, homoglyph folding
+#: and casefolding, so ``X-Api-Key``, ``apiKey``, the fullwidth ``ａｐｉ＿ｋｅｙ`` and the Cyrillic ``аpi_key``
+#: are all one key. ``REDACTION_EXEMPT_KEYS`` and the contract models' own declarations (see
+#: ``_contract_field_index``) carve out the contract fields that merely share a name with a header.
 SENSITIVE_KEY_PATTERNS: tuple[str, ...] = (
     "apikey",
     "api_key",
@@ -47,7 +53,9 @@ SENSITIVE_KEY_PATTERNS: tuple[str, ...] = (
     "password",
     "passwd",
     "pwd",
+    "pass",
     "passphrase",
+    "auth",
     "authorization",
     "www_authenticate",
     "bearer",
@@ -79,7 +87,11 @@ SENSITIVE_VALUE_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bsk-ant-[A-Za-z0-9_-]{16,}"),
     re.compile(r"\bsk-[A-Za-z0-9_-]{20,}"),
     re.compile(r"\brc_[A-Za-z0-9]{20,}"),
-    re.compile(r"\b(?:PK|AK)[A-Z0-9]{16,}\b"),
+    # Alpaca key ids. The negative lookahead excludes OCC option symbols, which share the shape:
+    # "AKAM260925C00230000" (Akamai) and "PKG260925P00120000" (Packaging Corp) are instrument
+    # identifiers, not credentials, and redacting one makes the record unbuildable - an outage for every
+    # ticker beginning AK or PK. An OCC symbol is ROOT + YYMMDD + C/P + 8 digits; an API key is not.
+    re.compile(r"\b(?!(?:[A-Z]{1,6})\d{6}[CP]\d{8}\b)(?:PK|AK)[A-Z0-9]{16,}\b"),
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
     re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}\b"),
@@ -94,28 +106,16 @@ SENSITIVE_VALUE_PATTERNS: tuple[re.Pattern[str], ...] = (
 #
 # The exemption is deliberately narrow: a numeric value survives only under a key that carries a namespace
 # separator, which is how those data keys are written ("vendor:polygon", "model:featherless/qwen3"). A plain
-# field name never has one, so ``account_number`` and ``ssn`` are still redacted even though they are digits.
+# field name never has one, so ``account_number`` and ``ssn`` are still redacted even though they are digits,
+# and a bare credential-shaped key in a decimal map still fails the append closed.
 _NUMERIC_VALUE = re.compile(r"^-?\d+(?:\.\d+)?$")
 _DATA_KEY = re.compile(r"[:/]")
-# Keys whose value is a bag of headers or cookies. These are replaced WHOLESALE rather than
-# recursed into: the individual header names are themselves revealing, and there is no structure
-# inside worth preserving. This is the one place a sensitive key still swallows its whole value -
-# and it is why `Policy.authorization` (a contract sub-section, not a header bag) is not in the list.
-_COLLECTION_KEYS: frozenset[str] = frozenset({
-    "header", "headers", "request_header", "request_headers", "response_header", "response_headers",
-    "http_header", "http_headers", "cookie", "cookies", "set_cookie", "raw_headers",
-})
-
-
-def _is_collection_key(key: Any) -> bool:
-    """True when a key names a header/cookie bag, whose value is replaced whole."""
-    if not isinstance(key, str):
-        return False
-    return "_".join(_key_tokens(key)) in _COLLECTION_KEYS
-# Contract field names that would otherwise match ``authorization`` but carry no secret: an authorization hash
-# and the timestamp at which an authorization was validated. The ``authorization`` *object* itself is a contract
-# object (it carries ``schema_version``) and is recursed into rather than replaced.
-REDACTION_EXEMPT_KEYS: frozenset[str] = frozenset({"authorization_hash", "authorization_validated_at"})
+# Contract field names that match a sensitive pattern but carry no secret: the hash of an authorization, the
+# timestamp at which one was validated, and the authorization's own identifier (a uuid7 lookup key that the
+# record must keep for its hash to verify). The authorization *object* is recognised structurally instead.
+REDACTION_EXEMPT_KEYS: frozenset[str] = frozenset(
+    {"authorization_hash", "authorization_validated_at", "auth_id"}
+)
 
 # --------------------------------------------------------------------------------------------------------------------
 # Canonical JSON
@@ -314,20 +314,22 @@ _CAMEL_BOUNDARY = ("abcdefghijklmnopqrstuvwxyz0123456789", "ABCDEFGHIJKLMNOPQRST
 # Cyrillic and Greek letters that render identically to ASCII. NFKC leaves them alone because they
 # are genuinely different letters, not compatibility forms - so a key spelled with them looks exactly
 # like "api_key" to a human reviewer and nothing like it to a matcher. Mapped explicitly.
-_HOMOGLYPHS = str.maketrans({
-    "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "у": "y",
-    "х": "x", "і": "i", "ѕ": "s", "һ": "h", "ԁ": "d", "ԛ": "q",
-    "Α": "A", "Β": "B", "Ε": "E", "Ζ": "Z", "Η": "H", "Ι": "I",
-    "Κ": "K", "Μ": "M", "Ν": "N", "Ο": "O", "Ρ": "P", "Τ": "T",
-    "Υ": "Y", "Χ": "X", "ο": "o", "ρ": "p", "υ": "u",
-})
+_HOMOGLYPHS = str.maketrans(
+    {
+        "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "у": "y",
+        "х": "x", "і": "i", "ѕ": "s", "һ": "h", "ԁ": "d", "ԛ": "q",
+        "Α": "A", "Β": "B", "Ε": "E", "Ζ": "Z", "Η": "H", "Ι": "I",
+        "Κ": "K", "Μ": "M", "Ν": "N", "Ο": "O", "Ρ": "P", "Τ": "T",
+        "Υ": "Y", "Χ": "X", "ο": "o", "ρ": "p", "υ": "u",
+    }
+)
 
 
 def _key_tokens(key: str) -> list[str]:
     """``"X-Api-Key"`` -> ``["x", "api", "key"]``; ``"accessToken"`` -> ``["access", "token"]``."""
     # NFKC folds fullwidth and other compatibility forms onto ASCII, so "ａpi_key" is seen as "api_key".
     # It does NOT fold Cyrillic homoglyphs (Cyrillic "а" is a distinct letter, not a compatibility form),
-    # so those are mapped explicitly below - a key nobody can read as anything but "api_key" must not slip
+    # so those are mapped explicitly - a key nobody can read as anything but "api_key" must not slip
     # through because two of its letters came from another alphabet.
     key = unicodedata.normalize("NFKC", key)
     key = key.translate(_HOMOGLYPHS)
@@ -346,11 +348,7 @@ def _token_matches(token: str, pattern_token: str) -> bool:
     return token == pattern_token or token == pattern_token + "s"
 
 
-def is_sensitive_key(key: str) -> bool:
-    """True when a mapping key names a credential, secret, token, header collection or similar."""
-    if key.lower() in REDACTION_EXEMPT_KEYS:
-        return False
-    tokens = _key_tokens(key)
+def _matches_sensitive_pattern(tokens: list[str]) -> bool:
     for pattern in SENSITIVE_KEY_PATTERNS:
         pattern_tokens = pattern.split("_")
         width = len(pattern_tokens)
@@ -364,23 +362,143 @@ def is_sensitive_key(key: str) -> bool:
     return False
 
 
+def is_sensitive_key(key: str) -> bool:
+    """True when a mapping key names a credential, secret, token, header collection or similar."""
+    if key.casefold() in REDACTION_EXEMPT_KEYS:
+        return False
+    return _matches_sensitive_pattern(_key_tokens(key))
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# What the contract models say about themselves (ledger/requests.md REQ-3)
+# --------------------------------------------------------------------------------------------------------------------
+# ``redact`` runs over the JSON form of a record, where a NESTED contract model is an ordinary object with no
+# ``schema_version`` of its own - so shape alone cannot tell ``Policy.authorization`` (the TTL section,
+# ``{"ttl_seconds": 15}``) apart from an ``Authorization:`` header, and replacing it wholesale breaks the policy
+# hash and makes the record unbuildable. Rather than keep a hand-written allow-list that silently drifts from the
+# contracts, ask the models: they declare which field names hold nested contract models, which fields those models
+# have, and which fields are closed vocabularies. Computed once on first use - never at import time, because this
+# module is imported BY the models.
+
+
+def _declared_model_fields(annotation: Any) -> frozenset[str]:
+    """Field names of every contract model reachable from ``annotation`` (through ``|``, ``list``, ``dict``)."""
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return frozenset(annotation.model_fields)
+    names: set[str] = set()
+    for argument in get_args(annotation):
+        names |= _declared_model_fields(argument)
+    return frozenset(names)
+
+
+def _closed_vocabulary(annotation: Any) -> frozenset[Any] | None:
+    """The constants an annotation admits, or ``None`` when it admits anything else."""
+    if annotation is bool:
+        return frozenset({True, False})
+    if isinstance(annotation, type) and issubclass(annotation, Enum):
+        return frozenset(member.value for member in annotation)
+    origin = get_origin(annotation)
+    if origin is Literal:
+        return frozenset(get_args(annotation))
+    if origin in (Union, UnionType):
+        values: set[Any] = set()
+        for argument in get_args(annotation):
+            if argument is type(None):
+                continue
+            inner = _closed_vocabulary(argument)
+            if inner is None:
+                return None
+            values |= inner
+        return frozenset(values) if values else None
+    return None
+
+
+@functools.lru_cache(maxsize=1)
+def _contract_field_index() -> tuple[dict[str, frozenset[str]], dict[str, frozenset[Any]]]:
+    """``({section name: fields its models declare}, {field name: the constants it may hold})``.
+
+    A name lands in the second map only when EVERY contract model declaring it declares a closed
+    vocabulary for it, so one open-ended field of the same name anywhere removes the entry.
+    """
+    import mizan.contracts  # noqa: F401, PLC0415  - loads every model module before we enumerate them
+    from mizan.contracts._base import ContractModel  # noqa: PLC0415  - imported late; avoids a cycle
+
+    models: set[type[BaseModel]] = set()
+    pending: list[type[BaseModel]] = [ContractModel]
+    while pending:
+        for subclass in pending.pop().__subclasses__():
+            if subclass not in models:
+                models.add(subclass)
+                pending.append(subclass)
+
+    sections: dict[str, set[str]] = {}
+    constants: dict[str, set[Any]] = {}
+    open_ended: set[str] = set()
+    for model in models:
+        for name, field in model.model_fields.items():
+            nested = _declared_model_fields(field.annotation)
+            if nested:
+                sections.setdefault(name, set()).update(nested)
+            vocabulary = _closed_vocabulary(field.annotation)
+            if vocabulary is None:
+                open_ended.add(name)
+            else:
+                constants.setdefault(name, set()).update(vocabulary)
+    return (
+        {name: frozenset(fields) for name, fields in sections.items()},
+        {name: frozenset(values) for name, values in constants.items() if name not in open_ended},
+    )
+
+
+def _contract_sections() -> dict[str, frozenset[str]]:
+    return _contract_field_index()[0]
+
+
+def _contract_constants() -> dict[str, frozenset[Any]]:
+    return _contract_field_index()[1]
+
+
+def _is_declared_constant(key: str, value: Any) -> bool:
+    """True when ``value`` is one of the constants the contracts declare for a field of this name.
+
+    ``CalendarState.session`` is a ``Literal["pre", "open", "close", "after", "closed"]`` - the market
+    session, not a login session - and ``"[REDACTED]"`` is none of those, so redacting it would refuse
+    every record carrying a calendar. The exemption is on the VALUE as much as the name: a session token
+    under the same key is not one of those five constants and is redacted like any other credential.
+    """
+    if value is None or isinstance(value, (Mapping, list, tuple, set, frozenset)):
+        return False
+    allowed = _contract_constants().get(key)
+    if allowed is None:
+        return False
+    return any(type(constant) is type(value) and constant == value for constant in allowed)
+
+
 def _is_contract_object(value: Any) -> bool:
+    """A mapping carrying its own ``schema_version`` is a top-level contract object."""
     return isinstance(value, Mapping) and "schema_version" in value
 
 
-def _numeric_data_value(key: Any, value: Any, *, inherited: bool) -> bool:
-    """True when a numeric value under a sensitive key is data rather than a credential.
+def _contract_section_fields(key: str, value: Mapping[Any, Any]) -> frozenset[str] | None:
+    """The declared field names of the nested contract model at ``key``, or ``None`` if this is not one.
 
-    Only namespaced data keys qualify ("vendor:secret-feed" in a decimal map). A plain field name never
-    carries a separator, so ``account_number`` and ``ssn`` stay redacted despite being digits.
+    Recognised from the models own declarations, never from ``schema_version`` (a NESTED model has none):
+    ``key`` must name a field that holds a contract model somewhere in the contracts, and the mapping must
+    actually carry at least one field that model declares. So ``{"ttl_seconds": 15}`` under ``authorization``
+    is the ``Policy.authorization`` TTL section and keeps the structure the policy hash needs, while
+    ``{"scheme": ..., "value": ...}`` under the very same name is a credentials blob and is replaced whole.
     """
-    if isinstance(value, bool):
-        return False
-    if not (isinstance(value, int) or (isinstance(value, str) and _NUMERIC_VALUE.fullmatch(value))):
-        return False
-    if inherited:
-        return True
-    return isinstance(key, str) and bool(_DATA_KEY.search(key))
+    declared = _contract_sections().get(key)
+    if not declared:
+        return None
+    if any(isinstance(name, str) and name in declared for name in value):
+        return declared
+    return None
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# The transform itself
+# --------------------------------------------------------------------------------------------------------------------
 
 
 def _scrub_value(value: str) -> str:
@@ -390,60 +508,124 @@ def _scrub_value(value: str) -> str:
     return value
 
 
-def _redact(obj: Any, *, inherited: bool = False) -> Any:
-    """Redact ``obj``. ``inherited`` means an enclosing key was sensitive, so scalars here are too.
+def _numeric_data_value(key: Any, value: Any) -> bool:
+    """True when a numeric value under a sensitive key is DATA rather than a credential.
 
-    Three cases need distinguishing, and conflating any two of them causes a real bug:
-
-    * a sensitive key holding a SCALAR is a credential -> replace it (unless it is a number);
-    * a sensitive key holding a CONTRACT OBJECT is a legitimate nested contract (the ``authorization``
-      field of a DecisionRecord is an ExecutionAuthorization) -> recurse normally, no inheritance;
-    * a sensitive key holding any OTHER structure is either a credentials blob or a contract sub-section
-      that merely shares a name (``Policy.authorization`` is ``{"ttl_seconds": 15}``) -> recurse WITH
-      inheritance, so strings inside are redacted while the structure and its numbers survive.
-
-    Replacing that third case wholesale is what destroyed ``Policy.authorization``, breaking the policy
-    hash and making the record unbuildable (ledger/requests.md REQ-3).
+    Only namespaced data keys qualify - the keys of the free-form DecimalStr maps are written
+    ``"vendor:polygon"``, ``"model:featherless/qwen3"``. A plain field name never carries a separator, so
+    ``account_number`` and ``ssn`` stay redacted despite being digits, and a credential-shaped key in one of
+    those maps still makes the append fail closed rather than persisting the number under it.
     """
+    if isinstance(value, bool):
+        return False
+    if not (isinstance(value, int) or (isinstance(value, str) and _NUMERIC_VALUE.fullmatch(value))):
+        return False
+    return isinstance(key, str) and bool(_DATA_KEY.search(key))
+
+
+def _redact_sensitive(key: str, value: Any) -> Any:
+    """The value under a key that names a credential.
+
+    A COLLECTION here is a header collection or a credentials blob and is replaced wholesale - redacting it
+    key by key leaks whatever spelling was not anticipated. The exception is a nested contract model,
+    recognised either by its own ``schema_version`` or by the declarations in ``_contract_sections``; those
+    are recursed into so their structure, and the hash that covers it, survive.
+    """
+    if value is None:
+        return None
+    if isinstance(value, BaseModel):
+        value = value.model_dump(mode="json")
+    if isinstance(value, Mapping):
+        if _is_contract_object(value):
+            return _redact(value)
+        declared = _contract_section_fields(key, value)
+        if declared is not None:
+            return _redact_section(value, declared)
+        return REDACTED
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return REDACTED
+    if _numeric_data_value(key, value):
+        return value
+    return REDACTED
+
+
+def _redact_section(value: Mapping[Any, Any], declared: frozenset[str]) -> dict[Any, Any]:
+    """A nested contract model under a sensitive key: keep the fields it declares, redact everything else.
+
+    Keeping the declared fields is what lets the policy hash still verify (ledger/requests.md REQ-3); each
+    is still judged on its own name, so an ``api_key`` a model happened to declare would still go. Redacting
+    every UNdeclared key means a credentials blob that borrows a contract section name cannot hide inside it.
+    """
+    out: dict[Any, Any] = {}
+    for name, item in value.items():
+        if isinstance(name, str) and name in declared:
+            out[name] = _redact({name: item})[name]
+        elif item is None:
+            out[name] = None
+        else:
+            out[name] = REDACTED
+    return out
+
+
+def _ordering_key(value: Any) -> str:
+    """A set is unordered and canonical JSON is not, so redacted set members get a stable order."""
+    return f"{type(value).__name__}:{value}"
+
+
+def _redact_element(item: Any) -> Any:
+    """One member of a sequence; a two-element ``[name, value]`` pair is the header pair-list form.
+
+    ``[("Authorization", "Bearer ..."), ("Set-Cookie", "...")]`` is how requests libraries and multidicts
+    spell a header collection once flattened, and no key in the enclosing mapping names it as one. The name
+    is kept (it is not the secret) and the value replaced.
+    """
+    if (
+        isinstance(item, (list, tuple))
+        and len(item) == 2
+        and isinstance(item[0], str)
+        and is_sensitive_key(item[0])
+        and not _is_declared_constant(item[0], item[1])
+    ):
+        return [item[0], REDACTED]
+    return _redact(item)
+
+
+def _redact(obj: Any) -> Any:
+    if isinstance(obj, BaseModel):
+        return _redact(obj.model_dump(mode="json"))
     if isinstance(obj, Mapping):
         out: dict[Any, Any] = {}
         for key, value in obj.items():
-            sensitive = inherited or (isinstance(key, str) and is_sensitive_key(key))
-            if not sensitive or value is None:
-                out[key] = _redact(value, inherited=False)
-            elif _is_collection_key(key):
-                out[key] = REDACTED
-            elif _is_contract_object(value):
-                out[key] = _redact(value, inherited=False)
-            elif isinstance(value, (Mapping, list, tuple)):
-                out[key] = _redact(value, inherited=True)
-            elif _numeric_data_value(key, value, inherited=inherited):
-                out[key] = value
+            if isinstance(key, str) and is_sensitive_key(key) and not _is_declared_constant(key, value):
+                out[key] = _redact_sensitive(key, value)
             else:
-                out[key] = REDACTED
+                out[key] = _redact(value)
         return out
+    if isinstance(obj, (set, frozenset)):
+        return sorted((_redact(item) for item in obj), key=_ordering_key)
     if isinstance(obj, (list, tuple)):
-        return [_redact(item, inherited=inherited) for item in obj]
-    if inherited and isinstance(obj, str) and not _NUMERIC_VALUE.fullmatch(obj):
-        return REDACTED
-    if inherited and isinstance(obj, str):
-        return obj
+        return [_redact_element(item) for item in obj]
     if isinstance(obj, str):
         return _scrub_value(obj)
     return obj
 
 
 def redact(obj: Any) -> Any:
-    """Recursively replace values under sensitive keys with ``"[REDACTED]"``.
+    """Recursively replace credentials with ``"[REDACTED]"``. The result is always plain, serialisable data.
 
-    Keys are matched case-insensitively and across ``-``/``_``/camelCase spellings, as whole tokens (``secret_key``,
-    ``X-Api-Key``, ``accessToken``, ``request_headers`` all match). Header collections are replaced wholesale.
-    ``None`` is never redacted (there is nothing to hide), contract objects (mappings carrying ``schema_version``)
-    are recursed into rather than replaced, and ``REDACTION_EXEMPT_KEYS`` names the contract fields that merely
-    reference an authorization. Pydantic models are dumped to JSON form first; the result is always plain data.
+    Keys are matched case-insensitively and across ``-``/``_``/camelCase spellings, as whole tokens, after NFKC
+    normalisation and homoglyph folding (``secret_key``, ``X-Api-Key``, ``accessToken``, ``request_headers``,
+    ``ａｐｉ＿ｋｅｙ`` and the Cyrillic ``аpi_key`` all match). A collection under such a key - mapping, list,
+    header pair-list or set - is replaced wholesale unless it is a nested contract model, which is recognised
+    from the models' own declarations and recursed into so its structure survives into the hash. Values are
+    scrubbed too, wherever they appear: a ``Bearer`` token, an ``sk-``/``sk-ant-``/``rc_`` key, an Alpaca
+    ``PK``/``AK`` id, a JWT, a PEM header, a URL carrying credentials or ``?api_key=`` is replaced in place,
+    because a secret pasted into free text is the only way one can reach a record whose every model is
+    ``extra="forbid"``. ``None`` is never redacted (there is nothing to hide) and no credential is a number, but
+    a numeric value survives under a sensitive key only when the key is a namespaced data key;
+    ``REDACTION_EXEMPT_KEYS`` names the contract fields that merely reference an authorization. Pydantic models
+    and sets are recursed into.
     """
-    if isinstance(obj, BaseModel):
-        obj = obj.model_dump(mode="json")
     return _redact(obj)
 
 
