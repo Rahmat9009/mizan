@@ -1,0 +1,278 @@
+{
+  "account_id": "5b61edf2-7440-4d4a-9c5a-186a4f262ab0",
+  "account_source": "ledger (recorded, not live)",
+  "broker": null,
+  "broker_error": "--no-broker was passed; the broker was not contacted.",
+  "chain": {
+    "control_events": 0,
+    "decision_records": 12,
+    "exports": [
+      {
+        "control_events": 0,
+        "decision_records": 12,
+        "jsonl": "evidence/pack/audit-trail-tenant-a.jsonl",
+        "ledger": "evidence/live-ledger/tenant-a.sqlite",
+        "links": 12,
+        "readable": "evidence/pack/audit-trail-tenant-a.txt",
+        "tenant": "tenant-a"
+      }
+    ],
+    "links": 12,
+    "verdicts": "6 APPROVE, 6 REJECT"
+  },
+  "engine_version": "mizan-core/0.2.0",
+  "files": [
+    "SUMMARY.md",
+    "audit-trail-tenant-a.jsonl",
+    "audit-trail-tenant-a.txt",
+    "pack.json",
+    "replay.txt",
+    "summary-20260903T201147Z.md",
+    "summary-20260903T201802Z.md",
+    "summary-20260903T222021Z.md",
+    "verify-chain.txt"
+  ],
+  "generated_at": "2026-09-03T22:20:21Z",
+  "ledger": "evidence/live-ledger",
+  "pnl": "-50.55",
+  "pnl_words": "a LOSS",
+  "recorded_account": {
+    "as_of": "2026-09-03T20:44:35.485715Z",
+    "authorizations": [
+      {
+        "asset_class": "equity_option",
+        "auth_id": "01a068b2-6ad3-735f-88d1-0be3364d0877",
+        "environment": "paper",
+        "expires_at": "2026-09-03T19:15:22.263075Z",
+        "idempotency_key": "mz1-4f7e34c1cec02597278f4a263599d69769cd2199",
+        "intent": "open",
+        "issued_at": "2026-09-03T19:15:07.263075Z",
+        "leg_count": 2,
+        "legs": [
+          {
+            "filled_quantity": "",
+            "limit_price": "3.74",
+            "quantity": "1",
+            "side": "buy",
+            "status": "",
+            "symbol": "SPY260910C00774000"
+          },
+          {
+            "filled_quantity": "",
+            "limit_price": "3.25",
+            "quantity": "1",
+            "side": "sell",
+            "status": "",
+            "symbol": "SPY260910C00775000"
+          }
+        ],
+        "max_notional": "698.5",
+        "sequence": 4,
+        "symbol": "SPY",
+        "total_quantity": "2"
+      },
+      {
+        "asset_class": "equity_option",
+        "auth_id": "01a068b2-fd4a-75ec-99ef-4288ad430b78",
+        "environment": "paper",
+        "expires_at": "2026-09-03T19:16:04.460659Z",
+        "idempotency_key": "mz1-91e934448ed0378e57a6bae19c3c0f1393177086",
+        "intent": "open",
+        "issued_at": "2026-09-03T19:15:49.460659Z",
+        "leg_count": 2,
+        "legs": [
+          {
+            "filled_quantity": "",
+            "limit_price": "3.73",
+            "quantity": "1",
+            "side": "buy",
+            "status": "",
+            "symbol": "SPY260910C00774000"
+          },
+          {
+            "filled_quantity": "",
+            "limit_price": "3.18",
+            "quantity": "1",
+            "side": "sell",
+            "status": "",
+            "symbol": "SPY260910C00775000"
+          }
+        ],
+        "max_notional": "691.5",
+        "sequence": 6,
+        "symbol": "SPY",
+        "total_quantity": "2"
+      },
+      {
+        "asset_class": "equity_option",
+        "auth_id": "01a068b3-da36-7770-9625-40cbda58bfdc",
+        "environment": "paper",
+        "expires_at": "2026-09-03T19:17:00.430125Z",
+        "idempotency_key": "mz1-ec4fe060b7b30c774f7a3ca0fbfb0c4304fd96cb",
+        "intent": "open",
+        "issued_at": "2026-09-03T19:16:45.430125Z",
+        "leg_count": 2,
+        "legs": [
+          {
+            "filled_quantity": "",
+            "limit_price": "3.78",
+            "quantity": "1",
+            "side": "buy",
+            "status": "",
+            "symbol": "SPY260910C00774000"
+          },
+          {
+            "filled_quantity": "",
+            "limit_price": "3.3",
+            "quantity": "1",
+            "side": "sell",
+            "status": "",
+            "symbol": "SPY260910C00775000"
+          }
+        ],
+        "max_notional": "708.5",
+        "sequence": 8,
+        "symbol": "SPY",
+        "total_quantity": "2"
+      },
+      {
+        "asset_class": "equity_option",
+        "auth_id": "01a068cd-576b-7180-a25d-fb30c2141533",
+        "environment": "paper",
+        "expires_at": "2026-09-03T19:44:57.858023Z",
+        "idempotency_key": "mz1-956b0ba58005b86d09e72f4aede61a05e7d043a3",
+        "intent": "open",
+        "issued_at": "2026-09-03T19:44:42.858023Z",
+        "leg_count": 2,
+        "legs": [
+          {
+            "filled_quantity": "",
+            "limit_price": "0.1",
+            "quantity": "5",
+            "side": "buy",
+            "status": "",
+            "symbol": "SPY260908P00752000"
+          },
+          {
+            "filled_quantity": "",
+            "limit_price": "0.14",
+            "quantity": "5",
+            "side": "sell",
+            "status": "",
+            "symbol": "SPY260908P00753000"
+          }
+        ],
+        "max_notional": "120",
+        "sequence": 9,
+        "symbol": "SPY",
+        "total_quantity": "10"
+      },
+      {
+        "asset_class": "equity_option",
+        "auth_id": "01a068cd-6f06-7454-bbb9-64ef4973886c",
+        "environment": "paper",
+        "expires_at": "2026-09-03T19:45:03.902240Z",
+        "idempotency_key": "mz1-1a1a0b0acb498f7a6f3aeead100899530754be0b",
+        "intent": "open",
+        "issued_at": "2026-09-03T19:44:48.902240Z",
+        "leg_count": 2,
+        "legs": [
+          {
+            "filled_quantity": "",
+            "limit_price": "0.02",
+            "quantity": "5",
+            "side": "buy",
+            "status": "",
+            "symbol": "SPY260908P00737000"
+          },
+          {
+            "filled_quantity": "",
+            "limit_price": "0.04",
+            "quantity": "5",
+            "side": "sell",
+            "status": "",
+            "symbol": "SPY260908P00738000"
+          }
+        ],
+        "max_notional": "30",
+        "sequence": 10,
+        "symbol": "SPY",
+        "total_quantity": "10"
+      },
+      {
+        "asset_class": "equity_option",
+        "auth_id": "01a068d2-490d-76d1-b2cb-a18d0d64f5e8",
+        "environment": "paper",
+        "expires_at": "2026-09-03T19:50:21.861864Z",
+        "idempotency_key": "mz1-77eb7dcdc14a3757943c791c6921025a610c0d43",
+        "intent": "open",
+        "issued_at": "2026-09-03T19:50:06.861864Z",
+        "leg_count": 2,
+        "legs": [
+          {
+            "filled_quantity": "",
+            "limit_price": "0.75",
+            "quantity": "10",
+            "side": "buy",
+            "status": "",
+            "symbol": "SPY260910P00760000"
+          },
+          {
+            "filled_quantity": "",
+            "limit_price": "1.32",
+            "quantity": "10",
+            "side": "sell",
+            "status": "",
+            "symbol": "SPY260910P00765000"
+          }
+        ],
+        "max_notional": "2070",
+        "sequence": 11,
+        "symbol": "SPY",
+        "total_quantity": "20"
+      }
+    ],
+    "buying_power": "382097.8",
+    "cash": "100524.45",
+    "equity": "99949.45",
+    "options_trading_level": null,
+    "peak_equity": null,
+    "positions": [],
+    "recorded_at": "2026-09-03T20:44:35.485715Z",
+    "sequence": 12,
+    "source": "alpaca:mcp:paper:account",
+    "status": "",
+    "trading_blocked": null
+  },
+  "replay": {
+    "differing": 12,
+    "engine_changed": true,
+    "exit_code": 1,
+    "headline": "0/12 decisions reproduced identically | engine d5f5a5e8",
+    "ok": false,
+    "verdict": "ENGINE CHANGED",
+    "version_explained": 12
+  },
+  "starting_equity": "100000",
+  "verify": {
+    "ok": true,
+    "results": [
+      {
+        "exit_code": 0,
+        "ok": true,
+        "path": "evidence/live-ledger/tenant-a.sqlite",
+        "target": "ledger",
+        "tenant": "tenant-a"
+      },
+      {
+        "exit_code": 0,
+        "ok": true,
+        "path": "evidence/pack/audit-trail-tenant-a.jsonl",
+        "target": "export",
+        "tenant": "tenant-a"
+      }
+    ]
+  },
+  "window_from": "2026-09-03T19:13:23Z",
+  "window_words": "3 hours 6 minutes"
+}

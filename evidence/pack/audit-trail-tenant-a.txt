@@ -1,0 +1,24 @@
+Mizan audit trail - tenant-a
+source: evidence/live-ledger/tenant-a.sqlite
+links : 12
+
+Every line below is one link of an append-only hash chain. audit_prev_hash of each link is
+the audit_hash of the one before it, so a record cannot be altered, inserted or removed
+without breaking every link after it. Verify it yourself:
+
+    python -m mizan.audit.verify_chain evidence/live-ledger/tenant-a.sqlite
+
+ seq  recorded_at                  verdict  symbol   strategy             hash               reason codes
+----------------------------------------------------------------------------------------------------------------------------------
+   1  2026-09-03T19:13:23.249469Z  REJECT   SPY      bull_call_spread     fa2c6f3b6f65fe63   GREEKS_MISSING, HARD_REJECTION_UPHELD, SECTOR_DATA_MISSING
+   2  2026-09-03T19:13:23.249469Z  REJECT   SPY      bull_call_spread     e72d66a70778b67c   HARD_REJECTION_UPHELD, SECTOR_DATA_MISSING
+   3  2026-09-03T19:15:07.263075Z  REJECT   SPY      bull_call_spread     97458e84916d85b6   GREEKS_MISSING, HARD_REJECTION_UPHELD
+   4  2026-09-03T19:15:07.263075Z  APPROVE  SPY      bull_call_spread     900e2b6668909110   -
+   5  2026-09-03T19:15:49.460659Z  REJECT   SPY      bull_call_spread     ef9c813018378b92   GREEKS_MISSING, HARD_REJECTION_UPHELD
+   6  2026-09-03T19:15:49.460659Z  APPROVE  SPY      bull_call_spread     5e60473f96202498   -
+   7  2026-09-03T19:16:45.430125Z  REJECT   SPY      bull_call_spread     711667b17cc505e3   GREEKS_MISSING, HARD_REJECTION_UPHELD
+   8  2026-09-03T19:16:45.430125Z  APPROVE  SPY      bull_call_spread     b2fa3aa859ea6f3f   -
+   9  2026-09-03T19:44:42.859026Z  APPROVE  SPY      bull_put_spread      576804d57a469218   -
+  10  2026-09-03T19:44:48.902240Z  APPROVE  SPY      bull_put_spread      7cf8c0a484640012   -
+  11  2026-09-03T19:50:06.863862Z  APPROVE  SPY      bull_put_spread      f39824e2dd6ead36   -
+  12  2026-09-03T20:44:35.485715Z  REJECT   SPY      bull_call_spread     34a9ec303577a4c6   HARD_REJECTION_UPHELD, PORTFOLIO_STATE_MISSING, SECTOR_DATA_MISSING

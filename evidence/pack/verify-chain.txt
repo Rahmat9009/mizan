@@ -1,0 +1,26 @@
+$ python -m mizan.audit.verify_chain evidence/live-ledger/tenant-a.sqlite
+Mizan audit chain - offline verification
+  file      : evidence\live-ledger\tenant-a.sqlite
+  format    : sqlite
+  tenant    : tenant-a
+  links     : 12 (12 decision record(s), 0 control event(s))
+  sequence  : 1 .. 12
+  verifier  : mizan-core/0.2.0 (offline; no network, no credentials, read-only)
+
+  RESULT: CHAIN VERIFIED
+  Every audit_hash recomputes from the record's own content and every record links to
+  its predecessor. 12 record(s) verified.
+
+$ python -m mizan.audit.verify_chain evidence/pack/audit-trail-tenant-a.jsonl
+Mizan audit chain - offline verification
+  file      : evidence\pack\audit-trail-tenant-a.jsonl
+  format    : json-lines
+  tenant    : tenant-a
+  links     : 12 (12 decision record(s), 0 control event(s))
+  sequence  : 1 .. 12
+  verifier  : mizan-core/0.2.0 (offline; no network, no credentials, read-only)
+
+  RESULT: CHAIN VERIFIED
+  Every audit_hash recomputes from the record's own content and every record links to
+  its predecessor. 12 record(s) verified.
+

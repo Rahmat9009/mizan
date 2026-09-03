@@ -1,0 +1,195 @@
+# Mizan - submission evidence pack
+
+Generated: **2026-09-03T22:20:21Z**
+
+One command produced everything in this directory:
+
+```
+python scripts/evidence_pack.py
+```
+
+Read it top to bottom. Sections 3 and 4 need no credentials of any kind - anyone holding
+the ledger file can re-run them and get the same answer.
+
+---
+
+## 1. The account
+
+**THE ACCOUNT WAS NOT READ LIVE.** --no-broker was passed; the broker was not contacted.
+
+The live read needs `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` (or `APCA_API_KEY_ID` /
+`APCA_API_SECRET_KEY`) plus `ALPACA_PAPER=true` in the environment. Re-run this
+command with those set and this section fills in from the account itself.
+
+What follows is **the state Alpaca reported at 2026-09-03T20:44:35.485715Z**, as captured
+inside decision record #12 of the hash-chained ledger. These
+are the broker's own numbers, not a reconstruction - but they are as of that
+moment, not now, and they are labelled recorded rather than live throughout.
+Because they sit inside the chain, section 3's verification covers them: altering
+them would break every link after that record.
+
+| account id | `5b61edf2-7440-4d4a-9c5a-186a4f262ab0` |
+|---|---|
+| status (recorded) |  |
+| trading blocked | None |
+| options trading level | None |
+| source | `alpaca:mcp:paper:account` |
+| recorded at | 2026-09-03T20:44:35.485715Z |
+| starting equity | 100000.00 |
+| equity (recorded) | 99949.45 |
+| **profit and loss (recorded)** | **-50.55** |
+| cash (recorded) | 100524.45 |
+| buying power (recorded) | 382097.80 |
+| peak equity (recorded) | (not reported) |
+
+Profit and loss as last recorded: **-50.55** (a LOSS), over 3 hours 6 minutes (2026-09-03T19:13:23Z to 2026-09-03T20:44:35.485715Z).
+
+That number is the number. It is not annualised, not extrapolated, not scaled to a
+notional book, and not described as alpha or edge. A window this short is noise.
+The claim this repository makes is reproducibility, not return.
+
+---
+
+## 2. The book
+
+Recorded state, as of 2026-09-03T20:44:35.485715Z. Not live - see section 1.
+
+### Positions (recorded)
+
+None open. (An account can hold no positions and still have a full order history below; both are reported, and neither is inferred from the other.)
+
+### Orders
+
+The broker's own order list needs credentials and was not read. What the ledger *can* show is what Mizan authorized: 6 execution authorization(s), of which 6 multi-leg. An authorization is permission to submit, not a fill; the two are never merged here.
+
+| issued | symbol | intent | env | legs | qty | max notional | idempotency key |
+|---|---|---|---|---|---|---|---|
+| 2026-09-03T19:15:07 | `SPY` | open | **paper** | 2 | 2 | 698.50 | `mz1-4f7e34c1cec02597278f4a263599d69769cd2199` |
+| 2026-09-03T19:15:49 | `SPY` | open | **paper** | 2 | 2 | 691.50 | `mz1-91e934448ed0378e57a6bae19c3c0f1393177086` |
+| 2026-09-03T19:16:45 | `SPY` | open | **paper** | 2 | 2 | 708.50 | `mz1-ec4fe060b7b30c774f7a3ca0fbfb0c4304fd96cb` |
+| 2026-09-03T19:44:42 | `SPY` | open | **paper** | 2 | 10 | 120.00 | `mz1-956b0ba58005b86d09e72f4aede61a05e7d043a3` |
+| 2026-09-03T19:44:48 | `SPY` | open | **paper** | 2 | 10 | 30.00 | `mz1-1a1a0b0acb498f7a6f3aeead100899530754be0b` |
+| 2026-09-03T19:50:06 | `SPY` | open | **paper** | 2 | 20 | 2070.00 | `mz1-77eb7dcdc14a3757943c791c6921025a610c0d43` |
+
+**01a068b2-6ad3-735f-88d1-0be3364d0877** - 2 legs, equity_option, expires 2026-09-03T19:15:22 (single use)
+
+| leg | contract | side | qty | limit |
+|---|---|---|---|---|
+| 0 | `SPY260910C00774000` | buy | 1 | 3.74 |
+| 1 | `SPY260910C00775000` | sell | 1 | 3.25 |
+
+**01a068b2-fd4a-75ec-99ef-4288ad430b78** - 2 legs, equity_option, expires 2026-09-03T19:16:04 (single use)
+
+| leg | contract | side | qty | limit |
+|---|---|---|---|---|
+| 0 | `SPY260910C00774000` | buy | 1 | 3.73 |
+| 1 | `SPY260910C00775000` | sell | 1 | 3.18 |
+
+**01a068b3-da36-7770-9625-40cbda58bfdc** - 2 legs, equity_option, expires 2026-09-03T19:17:00 (single use)
+
+| leg | contract | side | qty | limit |
+|---|---|---|---|---|
+| 0 | `SPY260910C00774000` | buy | 1 | 3.78 |
+| 1 | `SPY260910C00775000` | sell | 1 | 3.30 |
+
+**01a068cd-576b-7180-a25d-fb30c2141533** - 2 legs, equity_option, expires 2026-09-03T19:44:57 (single use)
+
+| leg | contract | side | qty | limit |
+|---|---|---|---|---|
+| 0 | `SPY260908P00752000` | buy | 5 | 0.10 |
+| 1 | `SPY260908P00753000` | sell | 5 | 0.14 |
+
+**01a068cd-6f06-7454-bbb9-64ef4973886c** - 2 legs, equity_option, expires 2026-09-03T19:45:03 (single use)
+
+| leg | contract | side | qty | limit |
+|---|---|---|---|---|
+| 0 | `SPY260908P00737000` | buy | 5 | 0.02 |
+| 1 | `SPY260908P00738000` | sell | 5 | 0.04 |
+
+**01a068d2-490d-76d1-b2cb-a18d0d64f5e8** - 2 legs, equity_option, expires 2026-09-03T19:50:21 (single use)
+
+| leg | contract | side | qty | limit |
+|---|---|---|---|---|
+| 0 | `SPY260910P00760000` | buy | 10 | 0.75 |
+| 1 | `SPY260910P00765000` | sell | 10 | 1.32 |
+
+A buy leg and a sell leg on the same underlying and expiry, authorized together under
+one notional cap, is a defined-risk vertical. Mizan submits these to Alpaca as a single
+atomic `order_class=mleg` order for a reason: split into two single-leg orders, one side
+can fill while the other does not, and the account is left holding a naked short that
+no policy ever approved.
+
+---
+
+## 3. The audit trail (no credentials needed)
+
+12 link(s) across 1 tenant chain(s): 12 decision record(s), 0 control event(s).
+
+Verdicts recorded: 6 APPROVE, 6 REJECT
+
+Exported, verbatim, to:
+
+* `evidence/pack/audit-trail-tenant-a.jsonl` - the bytes the hashes were taken over, one record per line
+* `evidence/pack/audit-trail-tenant-a.txt` - the same chain as a table
+
+Every record carries the policy snapshot, the market and portfolio state, the model
+provenance, the verdict, the reason codes and the hash of the record before it. The
+chain is append-only at the storage layer and each link commits to its predecessor.
+
+### Offline chain verification
+
+```
+python -m mizan.audit.verify_chain evidence/live-ledger/tenant-a.sqlite
+```
+
+**PASS** - every audit_hash recomputes from the record's own content and every link matches its predecessor, in the ledger and in the export in this bundle alike.
+
+Full transcript: `verify-chain.txt`.
+
+---
+
+## 4. Credential-free decision replay (no credentials needed)
+
+```
+python -m mizan.replay --ledger ./evidence/live-ledger
+```
+
+**ENGINE CHANGED** - `0/12 decisions reproduced identically | engine d5f5a5e8`
+
+Each decision is recomputed from the record alone - the same policy snapshot, the same
+market and portfolio state, the same engine - and both the verdict and its hash must match
+bit for bit. The verdict alone would not be enough: a changed reason code or a changed
+authorized quantity would slip past it, and verdict_hash covers those too.
+
+This runs with no Alpaca key, no network and no access to our infrastructure. That is the
+whole point - the evidence is checkable by someone who does not trust us.
+
+Full transcript: `replay.txt`.
+
+---
+
+## 5. What is in this directory
+
+* `SUMMARY.md`
+* `audit-trail-tenant-a.jsonl`
+* `audit-trail-tenant-a.txt`
+* `pack.json`
+* `replay.txt`
+* `summary-20260903T201147Z.md`
+* `summary-20260903T201802Z.md`
+* `summary-20260903T222021Z.md`
+* `verify-chain.txt`
+
+`pack.json` is the same content as this file, machine-readable.
+
+## 6. What this pack does not prove
+
+* It says nothing about whether the strategy is any good. One trading session on a paper
+  account is far too small a sample to say anything about returns, and no attempt is made
+  here to dress it up as one.
+* Option greeks are not in it. They need an OPRA market-data agreement this account does
+  not hold, so the greeks-based checks block on `GREEKS_MISSING` rather than guessing - a
+  refusal that is visible in the reason codes of the recorded decisions above.
+* There is no close, cancel or replace path anywhere in Mizan. Positions run to expiry or
+  are closed by hand outside the system. That is a deliberate scope boundary, not an
+  omission, and it is why `scripts/position_monitor.py` only ever reports.

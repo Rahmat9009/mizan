@@ -42,4 +42,13 @@ audit*.json
 .DS_Store
 Thumbs.db
 .mizan-orchestrator.lock
-/evidence/
+# Scratch by default - but NOT the shipped proof. A reproducibility claim whose artifacts are
+# gitignored is not reproducible: on a fresh clone the command in the writeup had no ledger to read.
+# Excluding the CONTENTS rather than the directory, because git will not descend into an excluded
+# directory and so can never re-include anything inside one.
+/evidence/*
+!/evidence/live-ledger/
+# *.sqlite above still matches the file itself; last matching pattern wins, so re-include it here.
+!/evidence/live-ledger/*.sqlite
+!/evidence/pack/
+!/evidence/demo-transcript.txt

@@ -1,0 +1,287 @@
+MIZAN - demo transcript
+generated     2026-09-03T22:26:54Z
+repository    mizan @ 7542a18
+python        3.12.4
+ledger        evidence/live-ledger
+credentials   none used; this run is read-only and places no order
+
+Three sections: what Mizan takes away, what the policy decides, and what anyone can check.
+
+================================================================================================
+SECTION 1 of 3   Alpaca's official MCP server, and the seven tools Mizan cannot send    [2026-09-03T22:26:54Z]
+================================================================================================
+Alpaca's own MCP server is a separate process, started here from its pinned package. It is
+asked what it can do. No credential is needed to ask, and none is used: the point of this
+section is that the refusal below is a property of Mizan's client, not of a missing key.
+
+The seven that end a position or destroy a working order:
+  - cancel_all_orders
+  - cancel_order_by_id
+  - replace_order_by_id
+  - close_all_positions
+  - close_position
+  - exercise_options_position
+  - do_not_exercise_options_position
+
+EXPECT   every one of those seven is listed DENY, and the attempted call is refused before it is sent
+
+$ python scripts/mizan_cli.py mcp-tools --server alpaca
+  alpaca official MCP server
+    command          uvx.EXE --from alpaca-mcp-server==2.3.1 alpaca-mcp-server --transport stdio
+    server           Alpaca MCP Server 3.4.7
+    protocol         2025-06-18
+    base url         https://paper-api.alpaca.markets (ALPACA_PAPER_TRADE forced true)
+    tools offered    53
+    mizan allows     11
+      ALLOW  get_account_info
+      ALLOW  get_all_positions
+      ALLOW  get_clock
+      ALLOW  get_option_contracts
+      ALLOW  get_option_latest_quote
+      ALLOW  get_option_snapshot
+      ALLOW  get_order_by_client_id
+      ALLOW  get_order_by_id
+      ALLOW  get_stock_latest_quote
+      ALLOW  place_option_order
+      ALLOW  place_stock_order
+    mizan denies     9 (Hard Rule B4: no cancel, replace or close)
+      DENY   cancel_all_orders
+      DENY   cancel_order_by_id
+      DENY   close_all_positions
+      DENY   close_position
+      DENY   do_not_exercise_options_position
+      DENY   exercise_options_position
+      DENY   place_crypto_order
+      DENY   replace_order_by_id
+      DENY   update_account_config
+    unreachable      42 of 53 tools are off this client's allowlist
+  [exit 0]
+
+PASS     all seven destructive tools are on the denylist  -  exit 0
+
+Listing them is cheap. Now one of the seven is actually attempted, against the real server:
+
+$ python scripts/mizan_cli.py mcp-call close_all_positions --no-credentials
+  UNAUTHENTICATED  placeholder key; a 401 here proves the request reached Alpaca
+  DENIED  MCP tool 'close_all_positions' is not on this client's allowlist; allowed: ['get_account_info', 'get_all_positions', 'get_clock', 'get_option_contracts', 'get_option_latest_quote', 'get_option_snapshot', 'get_order_by_client_id', 'get_order_by_id', 'get_stock_latest_quote', 'place_option_order', 'place_stock_order']
+  [exit 2]
+
+PASS     close_all_positions is refused by the client, before a byte reaches Alpaca  -  exit 2 (2 == denied)
+
+================================================================================================
+SECTION 2 of 3   Two policies, one proposal, one instant, opposite verdicts    [2026-09-03T22:27:00Z]
+================================================================================================
+These are not fixtures. Both decisions below were taken during the live paper run, against
+Alpaca's own quotes, and both are links in the hash chain. The proposal is identical, the
+market snapshot is identical, the timestamp is identical. Only the policy differs.
+
+EXPECT   the greek-limit policy REJECTs with GREEKS_MISSING; the defined-risk policy APPROVEs; both re-derive bit for bit
+
+  the two recorded decisions, side by side
+
+    sequence             3
+                         4
+
+    decision id          01a068b2-69b2-757e-9d3e-aae44bd59b41
+                         01a068b2-6ad1-74c5-9d42-b830c02588cb
+
+    decision timestamp   2026-09-03T19:15:07.263075Z
+                         2026-09-03T19:15:07.263075Z
+
+    proposal id          68fea6e23eed4ed706cb4eff02c5ba35932e7e4295e71cefaa1406d48e3efbf0
+                         68fea6e23eed4ed706cb4eff02c5ba35932e7e4295e71cefaa1406d48e3efbf0
+
+    policy               options-conservative v1.4.0
+                         options-defined-risk v1.0.0
+
+    policy hash          afb00e9b0d072c92...
+                         c819e8abb207953a...
+
+    market data          quoted from snapshot fc4c1faa66f599f3b961d61b0926779a84bd8e95cf7ec873617bd3c32d2eb3fe
+                         quoted from snapshot fc4c1faa66f599f3b961d61b0926779a84bd8e95cf7ec873617bd3c32d2eb3fe
+
+    data source          alpaca:paper
+                         alpaca:paper
+
+    VERDICT              REJECT
+                         APPROVE
+
+    reason codes         GREEKS_MISSING, HARD_REJECTION_UPHELD
+                         (none)
+
+    same proposal id True | same instant True | same market snapshot True | different policy hash True
+
+PASS     one proposal, one market snapshot, one instant, two policies, two verdicts  -  REJECT under options-conservative, APPROVE under options-defined-risk
+
+Neither verdict is taken on trust. Each is recomputed from its own record:
+
+$ python scripts/mizan_cli.py replay 01a068b2-69b2-757e-9d3e-aae44bd59b41 --ledger evidence/live-ledger
+  replay  01a068b2-69b2-757e-9d3e-aae44bd59b41
+    mode             exact
+    identical        False
+    verdict          REJECT -> REJECT
+    original hash    465c64a4f72e3dd42e0b2b2cf929fe1e318f580ac74a2ee1420a3cb8f0b3e8ab
+    replayed hash    146a9c6303d0195fe18178bc3bd6e4fccf581e1bab56d2de23303f0434c9397a
+    codes            GREEKS_MISSING, HARD_REJECTION_UPHELD
+    engine matches   False
+    detail           exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash 465c64a4f72e... -> 146a9c6303d0.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+  [exit 1]
+$ python scripts/mizan_cli.py replay 01a068b2-6ad1-74c5-9d42-b830c02588cb --ledger evidence/live-ledger
+  replay  01a068b2-6ad1-74c5-9d42-b830c02588cb
+    mode             exact
+    identical        False
+    verdict          APPROVE -> APPROVE
+    original hash    a26c28ffb5fb209c9ea0f0778b1ce51f3dc99447229800a405dc198be390d800
+    replayed hash    07c671529c95b4d3299d9e0d499ddbcaab74ed25d803925ebe2ed9ef2d73505f
+    codes            none
+    engine matches   False
+    detail           exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash a26c28ffb5fb... -> 07c671529c95.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+  [exit 1]
+
+PASS     both decisions re-derive the same verdict from the record alone, and the hash difference is attributed to the engine version rather than to the records
+
+And the counterfactual, which is the same question asked the other way round: what would
+the REJECTED proposal have received under the other policy? The engine answers from the
+record - same proposal, same market data, different policy:
+
+$ python scripts/mizan_cli.py replay 01a068b2-69b2-757e-9d3e-aae44bd59b41 --ledger evidence/live-ledger --under-policy policies/options-defined-risk.yaml
+  replay  01a068b2-69b2-757e-9d3e-aae44bd59b41
+    mode             policy
+    identical        False
+    verdict          REJECT -> APPROVE
+    original hash    465c64a4f72e3dd42e0b2b2cf929fe1e318f580ac74a2ee1420a3cb8f0b3e8ab
+    replayed hash    4f9abdd9f1516ab4aa9ffb9b86beed41f88a98da0d36d93022b4ddfecea8cbe6
+    codes            none
+    engine matches   False
+    detail           policy decision replay against options-defined-risk 1.0.0 (377ff3c2a5e6...): a differing verdict is the answer, not a failure. differences: verdict REJECT -> APPROVE; reason codes +[] -['GREEKS_MISSING', 'HARD_REJECTION_UPHELD']; verdict_hash 465c64a4f72e... -> 4f9abdd9f151.... ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+  [exit 0]
+
+PASS     replayed under the defined-risk policy, the same recorded proposal APPROVEs  -  exit 0
+
+================================================================================================
+SECTION 3 of 3   The whole chain verified and every decision replayed, no credentials    [2026-09-03T22:27:02Z]
+================================================================================================
+Nothing below reads an account, opens a socket or needs a key. Anyone handed the .sqlite
+file and this repository gets the same two answers - which is the point, because evidence
+that needs our cooperation to check is not evidence.
+
+EXPECT   the chain verifies over all 12 links; a ledger built here and now replays bit-for-bit; and any difference against the shipped records is attributed to the engine version rather than reported as tampering
+
+$ python -m mizan.audit.verify_chain evidence/live-ledger/tenant-a.sqlite
+  Mizan audit chain - offline verification
+    file      : evidence\live-ledger\tenant-a.sqlite
+    format    : sqlite
+    tenant    : tenant-a
+    links     : 12 (12 decision record(s), 0 control event(s))
+    sequence  : 1 .. 12
+    verifier  : mizan-core/0.2.0 (offline; no network, no credentials, read-only)
+  
+    RESULT: CHAIN VERIFIED
+    Every audit_hash recomputes from the record's own content and every record links to
+    its predecessor. 12 record(s) verified.
+  [exit 0]
+
+PASS     the hash chain verifies offline  -  exit 0
+
+$ python examples/seed_ledger.py --out evidence/demo-ledger
+  seeding evidence\demo-ledger/tenant-a.sqlite  (no credentials, no network)
+    seq 1  APPROVE  equity buy, expected APPROVE
+            codes: -
+    seq 2  REJECT   defined-risk bull call spread, expected APPROVE
+            codes: GREEKS_MISSING, HARD_REJECTION_UPHELD, PRICE_MISSING
+    seq 3  REJECT   UNDEFINED-RISK spread of two shorts, expected REJECT (F-31)
+            codes: GREEKS_MISSING, HARD_REJECTION_UPHELD, NAKED_SHORT_NOT_PERMITTED, PRICE_MISSING
+    seq 4  REJECT   naked short call as custom, expected REJECT (F-31)
+            codes: HARD_REJECTION_UPHELD, NAKED_SHORT_NOT_PERMITTED
+  
+  chain: ok=True length=4
+  now run:  python -m mizan.replay --ledger evidence\demo-ledger
+  [exit 0]
+$ python -m mizan.replay --ledger evidence/demo-ledger --assert-identical
+  credential-free decision replay over evidence\demo-ledger
+    tenant tenant-a: chain ok=True length=4
+  
+  4/4 decisions reproduced identically | engine d5f5a5e8
+  RESULT: IDENTICAL
+  
+    4/4 decisions reproduce bit-for-bit from the record via one credential-free command (engine d5f5a5e8).
+  [exit 0]
+
+PASS     a ledger built moments ago replays 4/4 decisions reproduced identically, credential-free  -  exit 0
+
+$ python -m mizan.replay --ledger evidence/live-ledger
+  credential-free decision replay over evidence\live-ledger
+    tenant tenant-a: chain ok=True length=12
+        seq 1    MISMATCH decision=01a068b1-b240-7308-b373-a8b0d8cebb28
+            verdict 'REJECT' -> 'REJECT'
+            hash    96829dbcd6e3198fc7f07363bb585f757b7a23d97343907325a1a28255d31edb
+            ->      0075fb9743e7ee6db442842634635e400dec1e859d8806338340f8388d2b6b11
+            exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash 96829dbcd6e3... -> 0075fb9743e7.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+        seq 2    MISMATCH decision=01a068b1-b2ad-753c-bce2-51c98fb1c368
+            verdict 'REJECT' -> 'REJECT'
+            hash    fef42b45dcc136e322262b30ea54e49a3b241ccfe91eff93f2946102ca06d4d0
+            ->      b53167b8e690bc720350dce1ddde70ade955a089d5e3478ab3ce74148f27ce1c
+            exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash fef42b45dcc1... -> b53167b8e690.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+        seq 3    MISMATCH decision=01a068b2-69b2-757e-9d3e-aae44bd59b41
+            verdict 'REJECT' -> 'REJECT'
+            hash    465c64a4f72e3dd42e0b2b2cf929fe1e318f580ac74a2ee1420a3cb8f0b3e8ab
+            ->      146a9c6303d0195fe18178bc3bd6e4fccf581e1bab56d2de23303f0434c9397a
+            exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash 465c64a4f72e... -> 146a9c6303d0.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+        seq 4    MISMATCH decision=01a068b2-6ad1-74c5-9d42-b830c02588cb
+            verdict 'APPROVE' -> 'APPROVE'
+            hash    a26c28ffb5fb209c9ea0f0778b1ce51f3dc99447229800a405dc198be390d800
+            ->      07c671529c95b4d3299d9e0d499ddbcaab74ed25d803925ebe2ed9ef2d73505f
+            exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash a26c28ffb5fb... -> 07c671529c95.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+        seq 5    MISMATCH decision=01a068b2-fbca-72a8-8954-6a04e31f58a8
+            verdict 'REJECT' -> 'REJECT'
+            hash    ff29ff407d0f69f83126e8a71242a003f8e5960608509582cf4310cbc11a47c9
+            ->      e3529cd6ba669bf9999e35b4bcfdceeef498ea807bccadbf1c0152b083574bdc
+            exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash ff29ff407d0f... -> e3529cd6ba66.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+        seq 6    MISMATCH decision=01a068b2-fd49-7479-8bca-2997895c611a
+            verdict 'APPROVE' -> 'APPROVE'
+            hash    403691df70f8fa84d445b316fcf7faf42e2694e8b18c5a1c7a9c1d3ebfeda0c9
+            ->      008f476c98057d7fc184f94548659509ad82cf3f940ff2a5a17adedf2a2a1572
+            exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash 403691df70f8... -> 008f476c9805.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+        seq 7    MISMATCH decision=01a068b3-d9d0-744f-a5b1-73b1e97aa461
+            verdict 'REJECT' -> 'REJECT'
+            hash    7662c7bc0e13f1f3083760f81373c558dff5ab6843d264c883fefd7faa63fd61
+            ->      3522070308c446300715bdd47ee95d129bb6cf542757ca16a64613b0879543b4
+            exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash 7662c7bc0e13... -> 3522070308c4.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+        seq 8    MISMATCH decision=01a068b3-da35-736e-893a-427ac00095ea
+            verdict 'APPROVE' -> 'APPROVE'
+            hash    71cad231eda856e292ce384e786518ae2440781d5c1b33b1afdaaf38cf8d0d58
+            ->      a650c4fd73a00a7f2d14cd1533617756791db5596cb2e8678da0dba3b16d77fe
+            exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash 71cad231eda8... -> a650c4fd73a0.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+        seq 9    MISMATCH decision=01a068cd-576a-7654-8899-5d030226488c
+            verdict 'APPROVE' -> 'APPROVE'
+            hash    09baf3e0981d22f2ab52c379b69c61649dcef11e12ec4e4c8af7c5689e068479
+            ->      55993982e7f6a08fc8b7d90067211813af1f277d35cbe6707051009857bf064d
+            exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash 09baf3e0981d... -> 55993982e7f6.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+        seq 10   MISMATCH decision=01a068cd-6f04-737b-8d74-7d9f45619431
+            verdict 'APPROVE' -> 'APPROVE'
+            hash    53867bf8064adc02c8e09d505f27d799afceb9cd2e4d44adedd7a5b5648b55dc
+            ->      b5b0777e839d90e99c0f5106713df767b1c5e8c7eecbbf37c18fa7551df05dcc
+            exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash 53867bf8064a... -> b5b0777e839d.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+        seq 11   MISMATCH decision=01a068d2-490c-767f-a836-95fad54c6413
+            verdict 'APPROVE' -> 'APPROVE'
+            hash    06dc017871276eab03767793bc03b4237fe1b322fa9027923bb649f8965f9039
+            ->      5b8c5ea41b1a8997bf52bc437f4530e6f76d3fc09fb6e307512d03a32b138e06
+            exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash 06dc01787127... -> 5b8c5ea41b1a.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+        seq 12   MISMATCH decision=01a06904-30a0-74b9-96e6-27e3474b1c97
+            verdict 'REJECT' -> 'REJECT'
+            hash    bb4ea6964d052b98a2a1df50fb2ea0f7ce44a6134c28ffd5a39e231b6e22fd9f
+            ->      993423d718c7cc291f7080eea29f6ff3a242121d4e5465c145cf9d5c683247c7
+            exact decision replay: the recorded proposal, risk context, policy snapshot and advisory opinion, re-run through the same engine. differences: verdict_hash bb4ea6964d05... -> 993423d718c7.... AN EXACT DECISION REPLAY THAT DIFFERS IS A FAILURE OF HARD RULE A1: either this record was altered after it was written, or the engine no longer decides the way it did. Verify the chain (python -m mizan.audit.verify_chain) before trusting either. ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine version, so a match here is not proof and a difference is not necessarily a defect - it is a version comparison.
+  
+  0/12 decisions reproduced identically | engine d5f5a5e8
+  RESULT: NOT IDENTICAL
+  [exit 1]
+
+PASS     all 12 differences against the shipped records are attributed to the engine version, not reported as tampering  -  exit 1; 12/12 carry the version explanation
+
+================================================================================================
+RESULT    [2026-09-03T22:27:04Z]
+================================================================================================
+ALL SECTIONS PASSED
+
+transcript    evidence/demo-transcript-20260903T222654Z.txt

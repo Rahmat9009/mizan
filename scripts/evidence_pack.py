@@ -480,7 +480,24 @@ def replay_ledger(ledger_dir: Path, out_dir: Path) -> dict[str, Any]:
         (line.strip() for line in output.splitlines() if "reproduced identically" in line),
         "",
     )
-    return {"ok": code == 0, "exit_code": code, "headline": headline, "transcript": output}
+    # "the engine changed" and "the ledger was altered" both surface as a non-zero exit, and reporting
+    # them the same way is how an honest version bump gets read as evidence of tampering. They are
+    # separated here, CONSERVATIVELY: every single differing record must carry the engine-version
+    # explanation. One unexplained difference and this is a plain FAIL, which is the safe direction to
+    # be wrong in - a real alteration must never be softened into a version note.
+    differing = output.count("MISMATCH decision=")
+    version_explained = output.count("ENGINE VERSION MISMATCH")
+    engine_changed = bool(differing) and differing == version_explained
+    return {
+        "ok": code == 0,
+        "exit_code": code,
+        "headline": headline,
+        "transcript": output,
+        "engine_changed": engine_changed,
+        "verdict": "PASS" if code == 0 else ("ENGINE CHANGED" if engine_changed else "FAIL"),
+        "differing": differing,
+        "version_explained": version_explained,
+    }
 
 
 def ledger_window(exports: list[dict[str, Any]]) -> tuple[datetime | None, datetime | None]:
@@ -669,7 +686,7 @@ def render_summary(pack: dict[str, Any]) -> str:
         f"python -m mizan.replay --ledger ./{pack['ledger']}",
         "```",
         "",
-        f"**{'PASS' if pack['replay']['ok'] else 'FAIL'}**"
+        f"**{pack['replay'].get('verdict', 'PASS' if pack['replay']['ok'] else 'FAIL')}**"
         + (f" - `{pack['replay']['headline']}`" if pack["replay"]["headline"] else ""),
         "",
         "Each decision is recomputed from the record alone - the same policy snapshot, the same",
@@ -940,7 +957,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  [3/4] verify-chain      {'PASS' if verify['ok'] else 'FAIL'}")
 
     replay = replay_ledger(ledger_dir, out_dir)
-    print(f"  [4/4] decision replay   {'PASS' if replay['ok'] else 'FAIL'}  {replay['headline']}")
+    print(f"  [4/4] decision replay   {replay['verdict']}  {replay['headline']}")
+    if replay["engine_changed"]:
+        print("        every difference is explained by the engine version, not by the records:")
+        print("        the chain verifies; this engine simply no longer decides the way that one did.")
 
     first, _last = ledger_window(exports)
     equity = broker["equity"] if broker is not None else (recorded or {}).get("equity")
@@ -1014,7 +1034,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  P&L       : {_signed(pnl)}  -> {pnl_words}, over {pack['window_words']}")
         print("              Not annualised. Not extrapolated. Not alpha.")
     print(f"  chain     : {links} link(s), verify-chain {'PASS' if verify['ok'] else 'FAIL'}")
-    print(f"  replay    : {'PASS' if replay['ok'] else 'FAIL'}  {replay['headline']}")
+    print(f"  replay    : {replay['verdict']}  {replay['headline']}")
+    if replay["engine_changed"]:
+        print("              engine-version comparison, NOT an integrity failure - see engine-versions.json")
     print()
     print(f"  read this : {_rel(out_dir / 'SUMMARY.md')}")
 
