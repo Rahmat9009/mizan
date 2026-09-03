@@ -9,10 +9,18 @@
 # HERMETIC. No Alpaca credentials, no network, no broker, no clock. Fakes and fixtures only.
 name: determinism
 
+# Private-repo minutes bill macOS at 10x and Windows at 2x, so six cells is roughly 78 billed
+# minutes per run against a 2,000/month tier. Only paths that can actually change a verdict trigger
+# it; everything else is workflow_dispatch.
 on:
-  push:
-  pull_request:
   workflow_dispatch:
+  push:
+    paths:
+      - 'mizan/**'
+      - 'tests/invariants/**'
+      - 'scripts/determinism_fingerprint.py'
+      - 'determinism-reference.json'
+      - '.github/workflows/determinism.yml'
 
 permissions:
   contents: read

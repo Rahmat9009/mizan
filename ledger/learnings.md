@@ -61,3 +61,9 @@
   against CURRENT_AIM.md found three real gaps (no REDUCE beat, an in-memory ledger behind an
   "append-only" claim, and Alpaca never reached) that reading the script does not surface, because the
   script's own headings assert each bullet. Assert the negatives too, so closing a gap is announced.
+- **Two git remotes now exist, and the asymmetry is the whole point.** `origin` (Rahmat9009/Mizan-) is the
+  SOLE SOURCE OF TRUTH; `ci` (faisalhacks/mizan) is a RUNNER, not a second home, added only because there is
+  no admin access on origin to run the determinism matrix. Rules: push order is always origin first then ci;
+  never pull or fetch from ci; nothing is ever authored on the mirror; if they disagree, origin wins.
+  Recorded here because undocumented parallel state is exactly what caused the two-orchestrator collision
+  (ESC-3) - the same mistake at repository level would be worse, because a divergent mirror looks authoritative.
