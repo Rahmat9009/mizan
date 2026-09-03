@@ -20,3 +20,44 @@
 - **Exempting a path from a gate must exempt every rule the gate can raise there, not just the cosmetic ones.** The REQ-6 lint resolution kept ruff's `B` rules enforced on frozen paths, so `B905` fired inside `tests/invariants/` and a lane did the reasonable thing and edited a frozen file to satisfy the linter it was shown. A gate that reports a fixable finding in a file nobody may edit will keep manufacturing exactly that violation.
 - **Two sessions in one working tree is a class of failure no lane discipline can reach.** §5.2 assigns one owner per path, but it assumes one dispatcher. With two, both sides' agents obeyed their briefs perfectly and still collided. What saved it was that both sides independently converged on self-contained test modules, reducing the collision surface to whole-file granularity. What did NOT save it was the commit discipline: `git add -A` mid-sprint produced a red commit from a green tree.
 - **`git add -A` is never a checkpoint.** A checkpoint commit must name its paths, and must be gated in a CLEAN CLONE, not in the working tree that produced it. The working tree passed while the commit it produced failed — the difference was uncommitted files the tree had and the commit did not.
+
+## Sprint 3 — L6 (critic & integration)
+
+- **A freeze on a directory has to say whether adding a file to it is a change.** Two of the four
+  frozen-path hunks this build produced were NEW documentation files added to `contracts/`. Both were
+  announced in progress.md and neither was escalated, because "don't edit the frozen files" reads as a
+  rule about modification. State the rule as "no write of any kind under these paths", or name the
+  artefacts rather than the directory. The same ambiguity will otherwise recur at every schema bump.
+- **Verify an escalation's claim rather than reading it.** ESC-1 says the removed hypothesis inputs
+  were unconstructible; the B905 entry says `strict=False` is a no-op. Both are true, and both took
+  one line to confirm. An audit that accepts a well-written justification is not an audit — it is a
+  second reading of the same sentence, and the whole reason the freeze exists is that the persuasive
+  explanation is what a real weakening would also come with.
+- **The strongest thing about the redaction rework is a choice in the test, not in the code.** The
+  key-based tests assert with a value that is deliberately NOT credential-shaped, so they cannot pass
+  because the value scrubber happened to catch it. When a system has two overlapping defences, a test
+  that would pass under either one proves neither. This is the pattern to copy.
+- **`passed=True, severity="blocking"` is a claim, and a check with no input must not make it.**
+  ESC-4: `duplicate_order` reads `RiskContext.recent_orders`, which nothing populates, so it reports
+  a blocking control that held — in a record whose entire purpose is to be believed later. The engine
+  gets this right everywhere it can see the gap (`aggregate_exposure` blocks with
+  `AGGREGATE_STATE_MISSING`; deferred checks record `info` with a detail). The failure was not a
+  missing rule, it was that nobody asked whether the check's input was ever wired. **For every check
+  that reads a context field, assert somewhere that the shipped pipeline actually populates it.**
+- **Prove ordering rules by ordering, not by outcome.** Hard Rule E4 is about *where* the kill switch
+  is read, and "it blocked" is true of an implementation that reads it at entry. Giving the kill
+  switch and the broker one shared log turns E4 into a one-line assertion about a list, and it catches
+  the caching mistake that the outcome assertion cannot.
+- **Run the published algorithm, not a paraphrase of it.** `contracts/CANONICAL.md` §6 prints a
+  standalone verifier and claims it is the whole of the algorithm. Transcribing that snippet into a
+  test — importing nothing but `hashlib` and `json` — and running it against a real chain is the only
+  thing that keeps a customer-facing specification honest as the code moves. Do the same for every
+  worked example a document publishes; two of CANONICAL.md's digests are now under test.
+- **Write a characterisation test so that it fails when the defect is fixed.** The four ESC-4 tests
+  assert the broken behaviour with messages that say "ESC-4 may be fixed; update this test". A defect
+  pinned that way cannot be quietly fixed, cannot be quietly forgotten, and does not turn into a test
+  that defends the bug.
+- **A demo that runs is not a demo that proves.** Checking `examples/killer_demo.py` bullet by bullet
+  against CURRENT_AIM.md found three real gaps (no REDUCE beat, an in-memory ledger behind an
+  "append-only" claim, and Alpaca never reached) that reading the script does not surface, because the
+  script's own headings assert each bullet. Assert the negatives too, so closing a gap is announced.
