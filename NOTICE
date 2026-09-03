@@ -1,0 +1,40 @@
+# NOTICE
+
+Mizan is licensed under the MIT License (see `LICENSE`).
+
+## Third-party work this project INTEROPERATES WITH
+
+Stated precisely, because the distinction matters legally and we would rather
+under-claim: **no third-party source code is vendored into this repository.**
+Everything below is a dependency resolved at install time or a separate process
+this project talks to over a protocol. Nothing here is redistributed by us.
+
+### TradingAgents — Apache License 2.0
+`mizan/adapters/tradingagents.py` is an ADAPTER written from scratch for this
+project. It imports nothing from TradingAgents: its only imports are the Python
+standard library and `mizan.contracts`. It consumes the SHAPE of a TradingAgents
+decision so that framework's output can be governed, which is interoperation,
+not derivation. No TradingAgents code is copied, modified or redistributed here,
+so the Apache-2.0 redistribution obligations (NOTICE propagation, statement of
+modifications) are not triggered. The attribution is recorded anyway because the
+interface is theirs and credit is owed for it.
+
+### alpaca-py — Apache License 2.0
+Alpaca's official Python SDK, installed as a normal dependency and pinned in
+`pyproject.toml`. Used by `mizan/adapters/alpaca_paper.py`. Not vendored.
+
+### alpaca-mcp-server — see the project's own licence
+Alpaca's official MCP server. Mizan launches it as a SEPARATE PROCESS and speaks
+MCP to it over stdio; it runs in its own environment (`uvx`), which is
+deliberate — it keeps that server's dependency versions from moving the pins
+recorded in every `DecisionRecord.library_versions`. Not vendored, not modified.
+
+Note, since it is a finding this project reports rather than a criticism made in
+passing: that server exposes seven tools which can liquidate an account with no
+decision recorded. Mizan makes them unreachable rather than relying on an agent
+not to call them. See `docs/MCP-INTERFACE.md`.
+
+### pydantic, jsonschema, PyYAML and other runtime dependencies
+Installed dependencies, each under its own licence, pinned in `pyproject.toml`.
+The decision-path pins are exact by design (Hard Rule C6) so that a recorded
+decision names the exact library versions that produced it.
