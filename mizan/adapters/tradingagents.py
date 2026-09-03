@@ -32,7 +32,10 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from mizan.sdk import Mizan
 
 from mizan.contracts import (
     AgentIdentity,
@@ -165,7 +168,10 @@ class TradingAgentsAdapter:
     """
 
     def __init__(self, mizan: Any, *, model: ModelIdentity, ttl: timedelta | None = None) -> None:
-        self.mizan = mizan
+        # Typed for the checker but accepted as Any at runtime: annotating the PARAMETER as Mizan
+        # would make mizan.sdk a hard import of this module and close an import cycle. The attribute
+        # annotation gives the checker the return types without creating one.
+        self.mizan: Mizan = mizan
         self.model = model
         self.ttl = ttl if ttl is not None else timedelta(minutes=_DEFAULT_TTL_MINUTES)
 

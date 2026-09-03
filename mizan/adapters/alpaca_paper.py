@@ -307,6 +307,9 @@ class AlpacaPaperBroker:
             "time_in_force": TimeInForce.DAY,
             "client_order_id": request.client_order_id,
         }
+        # Annotated because the two SDK request types are siblings, not subclasses of one another, and
+        # the alpaca package is imported lazily - so there is no shared base to narrow to here.
+        order_request: Any
         if leg.order_type == "limit":
             order_request = LimitOrderRequest(limit_price=leg.limit_price, **common)
         else:
