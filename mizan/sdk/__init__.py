@@ -104,7 +104,7 @@ class Mizan:
         )
         # Execution results are not part of the hash chain: a DecisionRecord is immutable by
         # construction (A2), so an outcome learned after the append cannot be written back into it.
-        # They are indexed here and surfaced by get_execution. See ledger/requests.md REQ-9.
+        # They are indexed here and surfaced by get_execution. See ledger/requests.md REQ-17.
         self._executions: dict[str, ExecutionResult] = {}
         self._lock = threading.Lock()
 
