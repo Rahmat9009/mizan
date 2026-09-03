@@ -330,24 +330,85 @@ def _chain_verification(
     return ChainVerification(ok=True, length=total, detail=f"{total} record(s) verified")
 
 
+def verify_stored_payloads(payloads: Sequence[tuple[int, Mapping[str, Any]]]) -> ChainVerification:
+    """Verify a chain against the bytes that were actually STORED, not a model round-trip.
+
+    This is the difference between "the record is intact" and "the record still parses into today's
+    model", and they are not the same claim. ``audit_hash`` was taken over the payload as written; if
+    verification re-serialises through the current contract instead, then ANY additive contract change
+    - a new optional field defaulting to null, which is the most innocuous change there is - silently
+    invalidates every record ever written. An audit trail that stops verifying because the software
+    moved on is not an audit trail.
+
+    Discovered exactly that way: adding one optional policy section broke all 12 live records while
+    their stored bytes were provably untouched.
+
+    This is not a weaker check. It is the check an independent third party performs with no Mizan code
+    at all (contracts/CANONICAL.md): take the stored JSON, remove ``audit_hash``, hash the canonical
+    form, compare. Hashing what was stored is the definition; hashing a re-serialisation was the bug.
+    """
+    previous_hash: str | None = None
+    previous_sequence: int | None = None
+    count = 0
+    for sequence, payload in payloads:
+        count += 1
+        stored_hash = payload.get("audit_hash")
+        body = {key: value for key, value in payload.items() if key != "audit_hash"}
+        expected = record_hash_for(body)
+        if stored_hash != expected:
+            return ChainVerification(
+                ok=False, length=len(payloads), first_bad_sequence=sequence,
+                detail=(
+                    f"record {sequence} content does not match its audit_hash "
+                    f"(recomputed {expected[:12]}..., stored {str(stored_hash)[:12]}...)"
+                ),
+            )
+        prev = payload.get("audit_prev_hash")
+        if previous_hash is None:
+            if prev != ZERO_HASH:
+                return ChainVerification(
+                    ok=False, length=len(payloads), first_bad_sequence=sequence,
+                    detail=f"first record {sequence} does not start from the zero hash",
+                )
+        else:
+            if previous_sequence is not None and sequence != previous_sequence + 1:
+                return ChainVerification(
+                    ok=False, length=len(payloads), first_bad_sequence=sequence,
+                    detail=f"sequence gap: record {sequence} follows {previous_sequence}",
+                )
+            if prev != previous_hash:
+                return ChainVerification(
+                    ok=False, length=len(payloads), first_bad_sequence=sequence,
+                    detail=f"record {sequence} does not link to record {previous_sequence}",
+                )
+        previous_hash = stored_hash
+        previous_sequence = sequence
+    return ChainVerification(ok=True, length=count, detail=f"{count} record(s) verified")
+
+
 def verify_stored_rows(rows: Sequence[tuple[int, str]]) -> ChainVerification:
     """Verify a chain held as ``(sequence, record_json)`` rows in sequence order.
 
     Shared by both ledgers and by the offline command line, so storage and the customer's own verifier
     can never disagree about what "verified" means.
     """
+    payloads: list[tuple[int, dict[str, Any]]] = []
     entries: list[ChainEntry] = []
     unreadable: tuple[int, str] | None = None
     for sequence, text in rows:
         try:
-            entries.append(load_chain_entry(json.loads(text)))
+            payload = json.loads(text)
+            payloads.append((sequence, payload))
+            entries.append(load_chain_entry(payload))
         except (ValidationError, ValueError) as exc:
             unreadable = (
                 sequence,
                 f"record {sequence} is not a readable chain link ({type(exc).__name__})",
             )
             break
-    return _chain_verification(entries, len(rows), unreadable)
+    if unreadable is not None:
+        return _chain_verification(entries, len(rows), unreadable)
+    return verify_stored_payloads(payloads)
 
 
 # ---------------------------------------------------------------------------------------------------

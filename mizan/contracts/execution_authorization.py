@@ -13,7 +13,7 @@ from typing import Annotated, Any
 
 from pydantic import Field, StringConstraints, ValidationInfo, model_validator
 
-from mizan.contracts._base import ContractModel, build_hashed, hash_check_skipped
+from mizan.contracts._base import verify_presented_hash, ContractModel, build_hashed
 from mizan.contracts.canonical import DECIMAL_CONTEXT, authorization_hash_for, idempotency_key_for
 from mizan.contracts.risk_context import PolicyRef, ResponseLevel
 from mizan.contracts.trade_proposal import (
@@ -151,9 +151,19 @@ class ExecutionAuthorization(ContractModel):
             raise ValueError("idempotency_key does not match idempotency_key_for(tenant_id, proposal_id, scope.legs)")
         if self.bound_state.policy_hash != self.policy.hash:
             raise ValueError("bound_state.policy_hash must equal policy.hash")
-        if not hash_check_skipped(info) and self.authorization_hash != authorization_hash_for(self):
-            raise ValueError("authorization_hash does not match the canonical hash of the authorization content")
         return self
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _hash_covers_the_content_as_presented(
+        cls, data: Any, handler: Any, info: ValidationInfo
+    ) -> ExecutionAuthorization:
+        """See :func:`verify_presented_hash` - the hash covers what was written, not what we'd write."""
+        model: ExecutionAuthorization = handler(data)
+        verify_presented_hash(
+            model, data, info, field="authorization_hash", compute=authorization_hash_for, message="authorization_hash does not match the canonical hash of the authorization content"
+        )
+        return model
 
     @classmethod
     def build(cls, **fields: Any) -> ExecutionAuthorization:

@@ -1,0 +1,15 @@
+{
+  "schema": "mizan.engine-versions/1",
+  "why": "An engine version is a PROMISE about behaviour, so it must move whenever behaviour moves. This file pins each published engine version to the determinism fingerprint it decides with. tests/replay/test_engine_version_moves_with_behaviour.py fails if the running engine's fingerprint is not the one pinned for its version, and the only honest way to make it pass is to publish a new version - never to re-pin an old one.",
+  "discovered": "2026-09-03: adding the expected_value check moved the fingerprint cc482f27 -> da21b43c while engine_version stayed mizan-core/0.1.0. Replay of the 12 live records then reported NOT IDENTICAL, which reads as tampering, when the truth was that the engine had changed and had not said so.",
+  "versions": {
+    "mizan-core/0.1.0": {
+      "fingerprint": "cc482f2772769849",
+      "note": "26 checks. Superseded by 0.2.0; records written under it replay under 0.1.0 only."
+    },
+    "mizan-core/0.2.0": {
+      "fingerprint": "d5f5a5e8fa46093f",
+      "note": "27 checks: adds expected_value, which refuses a spread whose credit-to-width implies negative expectancy."
+    }
+  }
+}

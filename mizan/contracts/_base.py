@@ -33,6 +33,39 @@ def hash_check_skipped(info: ValidationInfo) -> bool:
     return bool(context) and bool(context.get(SKIP_HASH_CHECK))
 
 
+def verify_presented_hash(
+    model: BaseModel,
+    data: Any,
+    info: ValidationInfo,
+    *,
+    field: str,
+    compute: Callable[[Any], str],
+    message: str,
+) -> None:
+    """Check a derived hash against the content AS PRESENTED, not against a re-serialisation of it.
+
+    Comparing to ``compute(model)`` sounds equivalent and is not. It asks "does this hash match what
+    today's contract would produce?", when the only question an audit trail may ask is "does this hash
+    match what was written?". The two answers diverge the moment a contract gains a field: every stored
+    record silently acquires the new field's default, every hash moves, and a ledger nobody touched
+    stops verifying. One optional policy section (``ev``) did exactly that to all 12 live records here
+    while their bytes were provably intact - the records were fine, the reader had changed.
+
+    Hashing the presented content is also the only check an outside party can reproduce. They have the
+    stored JSON and the published format, not our model: drop the hash field, canonicalise, compare.
+    If we verify differently we can call a ledger good that they call broken, or the reverse, and a
+    tamper-evidence claim that only our own code can confirm is not evidence of anything.
+
+    Objects built in memory pass unchanged - there ``data`` is not a mapping and the model IS the
+    presented content.
+    """
+    if hash_check_skipped(info):
+        return
+    presented = data if isinstance(data, Mapping) else model
+    if getattr(model, field) != compute(presented):
+        raise ValueError(message)
+
+
 def build_hashed(
     cls: type[ModelT],
     hash_field: str,
@@ -52,4 +85,10 @@ def build_hashed(
     return cls.model_validate(normalised)
 
 
-__all__ = ["SKIP_HASH_CHECK", "ContractModel", "build_hashed", "hash_check_skipped"]
+__all__ = [
+    "SKIP_HASH_CHECK",
+    "ContractModel",
+    "build_hashed",
+    "hash_check_skipped",
+    "verify_presented_hash",
+]

@@ -10,7 +10,11 @@ from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, Field, ValidationInfo, model_validator
 
-from mizan.contracts._base import ContractModel, build_hashed, hash_check_skipped
+from mizan.contracts._base import (
+    ContractModel,
+    build_hashed,
+    verify_presented_hash,
+)
 from mizan.contracts.canonical import policy_hash_for
 from mizan.contracts.risk_context import PolicyRef
 from mizan.contracts.trade_proposal import STRATEGIES, Strategy
@@ -428,9 +432,30 @@ class Policy(ContractModel):
             section = CHECK_SECTIONS[check_id]
             if config.enabled and section is not None and getattr(self, section) is None:
                 raise ValueError(f"check {check_id} is enabled but policy section {section!r} is null")
-        if not hash_check_skipped(info) and self.policy_hash != policy_hash_for(self):
-            raise ValueError("policy_hash does not match the canonical hash of the policy content")
         return self
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _hash_covers_the_content_as_presented(
+        cls, data: Any, handler: Any, info: ValidationInfo
+    ) -> Policy:
+        """The policy hash covers the policy AS PRESENTED, not a re-serialisation of it.
+
+        Checking ``policy_hash_for(self)`` instead means the hash is compared against whatever today's
+        model produces. Add one optional section - ``ev`` was the one that exposed this - and every
+        policy ever recorded gains an ``ev: null`` it was not written with, its hash moves, and every
+        historical decision record becomes unreadable. The records were untouched; the reader changed.
+
+        A third party verifying a ledger with no Mizan code does the presented-content check: take the
+        stored JSON, drop ``policy_hash``, hash the canonical form. Doing anything else here means our
+        verdict on a record can disagree with theirs, which defeats the point of publishing the format.
+        """
+        policy: Policy = handler(data)
+        verify_presented_hash(
+            policy, data, info, field="policy_hash", compute=policy_hash_for,
+            message="policy_hash does not match the canonical hash of the policy content",
+        )
+        return policy
 
     @property
     def ref(self) -> PolicyRef:

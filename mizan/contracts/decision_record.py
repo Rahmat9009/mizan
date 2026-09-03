@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping  # noqa: F401
 from typing import Any
 
 from pydantic import Field, ValidationInfo, model_validator
 
-from mizan.contracts._base import ContractModel, build_hashed, hash_check_skipped
+from mizan.contracts._base import verify_presented_hash, ContractModel, build_hashed
 from mizan.contracts.canonical import ZERO_HASH, record_hash_for
 from mizan.contracts.execution_authorization import ExecutionAuthorization
 from mizan.contracts.execution_result import ExecutionResult
@@ -100,9 +101,19 @@ class DecisionRecord(ContractModel):
                 raise ValueError("execution must carry this record's tenant_id and proposal_id")
         if (self.sequence == 1) != (self.audit_prev_hash == ZERO_HASH):
             raise ValueError("audit_prev_hash is ZERO_HASH exactly when sequence == 1")
-        if not hash_check_skipped(info) and self.audit_hash != record_hash_for(self):
-            raise ValueError("audit_hash does not match record_hash_for(record)")
         return self
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _hash_covers_the_content_as_presented(
+        cls, data: Any, handler: Any, info: ValidationInfo
+    ) -> DecisionRecord:
+        """See :func:`verify_presented_hash` - the hash covers what was written, not what we'd write."""
+        model: DecisionRecord = handler(data)
+        verify_presented_hash(
+            model, data, info, field="audit_hash", compute=record_hash_for, message="audit_hash does not match record_hash_for(record)"
+        )
+        return model
 
     @classmethod
     def build(cls, **fields: Any) -> DecisionRecord:

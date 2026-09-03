@@ -3,6 +3,6 @@
 Paper trading only. There is no live-trading value, flag or code path anywhere in this package.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = ["__version__"]

@@ -3,11 +3,12 @@ as decision records (R-GRAD-2). Escalation may be automatic; de-escalation requi
 
 from __future__ import annotations
 
+from collections.abc import Mapping  # noqa: F401
 from typing import Any, Literal
 
 from pydantic import Field, ValidationInfo, model_validator
 
-from mizan.contracts._base import ContractModel, build_hashed, hash_check_skipped
+from mizan.contracts._base import verify_presented_hash, ContractModel, build_hashed
 from mizan.contracts.canonical import ZERO_HASH, record_hash_for
 from mizan.contracts.reason_codes import ReasonCodeList
 from mizan.contracts.risk_context import PolicyRef, ResponseLevel
@@ -61,9 +62,19 @@ class ControlEvent(ContractModel):
             raise ValueError("deactivating the kill switch requires a human actor")
         if (self.sequence == 1) != (self.audit_prev_hash == ZERO_HASH):
             raise ValueError("audit_prev_hash is ZERO_HASH exactly when sequence == 1")
-        if not hash_check_skipped(info) and self.audit_hash != record_hash_for(self):
-            raise ValueError("audit_hash does not match record_hash_for(event)")
         return self
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _hash_covers_the_content_as_presented(
+        cls, data: Any, handler: Any, info: ValidationInfo
+    ) -> ControlEvent:
+        """See :func:`verify_presented_hash` - the hash covers what was written, not what we'd write."""
+        model: ControlEvent = handler(data)
+        verify_presented_hash(
+            model, data, info, field="audit_hash", compute=record_hash_for, message="audit_hash does not match record_hash_for(event)"
+        )
+        return model
 
     @classmethod
     def build(cls, **fields: Any) -> ControlEvent:
