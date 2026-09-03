@@ -24,7 +24,7 @@ import pytest
 from mizan import risk
 from mizan.contracts import Policy
 from mizan.contracts.policy import CHECK_IDS
-from mizan.contracts.types import format_ts
+from mizan.contracts.types import dstr, format_ts
 from mizan.risk import IMPLEMENTED_CHECKS
 from mizan.risk.checks import CHECK_FUNCTIONS
 
@@ -50,13 +50,15 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 #: caller anywhere in mizan/ populates, so duplicate_order's loop body is unreachable in production.
 #: Recorded as ESC-4. The emptiness of this mapping is asserted by an xfail(strict=True) below, so
 #: closing ESC-4 turns that test XPASS and forces this entry's removal.
-KNOWN_DEAD: dict[str, str] = {
-    "duplicate_order": "ESC-4: RiskContext.recent_orders is never populated by any shipped caller",
-}
+KNOWN_DEAD: dict[str, str] = {}
 
 
 def _exemplars():
-    """Checks needing a precisely shaped input the battery does not stumble into."""
+    """Checks needing a precisely shaped input the battery does not stumble into.
+
+    Each entry is ``(proposal, policy)`` or ``(proposal, policy, context)`` - the third form is for
+    checks whose failing condition lives in the CONTEXT rather than the proposal or policy.
+    """
     proposal = make_proposal()
     option = make_option_proposal()
     near = (FIXED_NOW + timedelta(days=1)).date().isoformat()
@@ -75,6 +77,25 @@ def _exemplars():
                 created_at=format_ts(FIXED_NOW - timedelta(hours=2)),
             ),
             path_and_aggregate_policy(),
+        ),
+        # ESC-4's check, now that recent_orders is derived rather than structurally empty. The failing
+        # condition is a prior order at the venue, which lives in the context.
+        "duplicate_order": (
+            proposal,
+            path_and_aggregate_policy(),
+            context_for(
+                path_and_aggregate_policy(),
+                recent_orders=[
+                    {
+                        "proposal_id": proposal.proposal_id,
+                        "symbol": proposal.symbol,
+                        "side": proposal.legs[0].side,
+                        "total_quantity": dstr(proposal.total_quantity),
+                        "submitted_at": format_ts(FIXED_NOW - timedelta(seconds=5)),
+                        "status": "accepted",
+                    }
+                ],
+            ),
         ),
         "days_to_expiry": (
             rebuild_proposal(
@@ -95,8 +116,10 @@ def _observed_failing() -> set[str]:
         for check in risk.evaluate(proposal, context, policy).checks:
             if not check.passed and policy.is_check_enabled(check.check_id):
                 failing.add(check.check_id)
-    for check_id, (proposal, policy) in _exemplars().items():
-        result = CHECK_FUNCTIONS[check_id](proposal, context_for(policy), policy)
+    for check_id, entry in _exemplars().items():
+        proposal, policy = entry[0], entry[1]
+        context = entry[2] if len(entry) > 2 else context_for(policy)
+        result = CHECK_FUNCTIONS[check_id](proposal, context, policy)
         if result is not None and not result.passed:
             failing.add(check_id)
     return failing
@@ -124,42 +147,30 @@ def test_every_enabled_check_can_actually_fail():
     )
 
 
-def test_known_dead_checks_are_exactly_the_escalated_ones():
-    """A NEW dead check HALTS the build; the one known dead check stays pinned to its escalation.
+def test_no_check_is_known_dead():
+    """The ratchet. KNOWN_DEAD must be EMPTY; adding to it is a HALT, not a workaround.
 
     An xfail is not available here and should not be: this suite's conftest classifies a skipped or
     xfailed invariant as BLOCKING, because an invariant that does not run proves nothing. So the gap is
-    pinned by identity instead. Adding a check to KNOWN_DEAD fails this test until the entry is both
-    named here and escalated in the ledger, and removing ESC-4's cause fails it until the entry goes.
-    Either direction is loud.
+    pinned by identity instead - and now that ESC-4 is closed, the identity is "nothing".
     """
-    assert set(KNOWN_DEAD) == {"duplicate_order"}, (
-        f"KNOWN_DEAD changed to {sorted(KNOWN_DEAD)}. A check that cannot fail is a control reporting "
-        "success on no evidence. If a NEW one appeared, that is a HALT: fix or remove the check rather "
-        "than widening this set. If duplicate_order was fixed, delete its entry and this expectation."
-    )
-    escalations = (REPO_ROOT / "ledger" / "escalations.md").read_text(encoding="utf-8")
-    assert "ESC-4" in escalations and "duplicate_order" in escalations, (
-        "every KNOWN_DEAD entry must be escalated in ledger/escalations.md by name; a dead control that "
-        "is not written down is indistinguishable from one nobody noticed"
+    assert KNOWN_DEAD == {}, (
+        f"KNOWN_DEAD is not empty: {sorted(KNOWN_DEAD)}. A check that cannot fail is a control reporting "
+        "success on no evidence, written into a record whose only purpose is to be believed later. Fix "
+        "or remove the check. Do NOT widen this set to go green - that is the ESC-4 mistake repeated."
     )
 
 
-def test_the_known_dead_check_really_is_dead():
-    """Verify the exemption rather than trusting it: duplicate_order cannot fail because no shipped
-    caller populates recent_orders, NOT because its logic is wrong. Given the evidence it needs, it
-    fails correctly - so the defect is the missing wiring, and this test says which."""
+def test_the_wiring_that_closed_esc4_is_still_in_place():
+    """ESC-4 was missing WIRING, not broken logic: duplicate_order could not fail because nothing ever
+    populated what it reads. Deleting that derivation would silently reopen it, and every other test
+    here would stay green - so the derivation itself is pinned."""
     provider = (REPO_ROOT / "mizan" / "adapters" / "context.py").read_text(encoding="utf-8")
-    assert "recent_orders" in provider, "the context provider no longer mentions recent_orders"
-    populated = [
-        line
-        for line in provider.splitlines()
-        if "recent_orders" in line and "=" in line and "()" not in line and "[]" not in line
-    ]
-    assert not [line for line in populated if "broker" in line.lower()], (
-        "a caller now populates recent_orders from the broker - ESC-4 may be fixed; re-verify "
-        "duplicate_order and empty KNOWN_DEAD"
+    assert "_recent_orders_from_ledger" in provider, (
+        "BrokerContextProvider no longer derives recent_orders from the ledger; ESC-4 is reopened and "
+        "duplicate_order is dead again"
     )
+    assert "self.ledger" in provider, "the derivation must read the tenant's chain"
 
 
 def test_the_battery_is_not_vacuous():

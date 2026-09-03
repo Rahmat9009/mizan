@@ -18,7 +18,7 @@ could not read the account" turns a fail-closed engine into a fail-open one.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from mizan.adapters.base import BrokerAdapter
@@ -38,6 +38,7 @@ from mizan.contracts import (
     format_ts,
     sha256_hex,
 )
+from mizan.contracts.types import dstr, parse_ts
 
 __all__ = ["BrokerContextProvider", "StateSources"]
 
@@ -70,8 +71,10 @@ class BrokerContextProvider:
         include_position_symbols: bool = True,
     ) -> None:
         self.broker = broker
-        #: Reserved for the Sprint-3 state derivations described above. Unused today, by design:
-        #: a half-derived state would be worse than an honestly absent one (E2).
+        #: The tenant's decision chain. Used to derive `recent_orders` (ESC-4): without it the
+        #: `duplicate_order` check is enabled, blocking, and structurally incapable of failing, because
+        #: its loop body iterates a list nothing ever fills. The other state derivations described above
+        #: remain deliberately unwired - a half-derived state is worse than an honestly absent one (E2).
         self.ledger = ledger
         self.path_state = path_state
         self.aggregate_state = aggregate_state
@@ -79,6 +82,59 @@ class BrokerContextProvider:
         self.response_level = response_level
         self.calendar = calendar
         self.include_position_symbols = include_position_symbols
+
+    #: Statuses that mean an order actually reached the venue. WOULD_SUBMIT is a dry run: nothing was
+    #: placed, so treating it as a live duplicate would block real orders that never had a predecessor.
+    AT_VENUE = frozenset({"SUBMITTED", "RECONCILED_EXISTING"})
+
+    #: How far back to read when the policy sets no window. Bounded so this can never walk a long chain.
+    DEFAULT_LOOKBACK_SECONDS = 300
+    MAX_RECORDS_SCANNED = 200
+
+    def _recent_orders_from_ledger(
+        self, tenant_id: str, now: datetime, policy: Policy
+    ) -> list[RecentOrder]:
+        """Orders this tenant already placed, newest first, within the duplicate-detection window.
+
+        Derived rather than declared: the window comes from the policy that will be evaluated against
+        it, so a tenant widening `duplicate_order.window_seconds` widens what the check can see, and the
+        two cannot silently disagree. Absent ledger or unreadable chain yields an empty list - the check
+        then reports what it always did, but that is now visible rather than structural.
+        """
+        if self.ledger is None:
+            return []
+        config = policy.check_config("duplicate_order")
+        window = config.window_seconds or self.DEFAULT_LOOKBACK_SECONDS
+        horizon = now - timedelta(seconds=window)
+
+        try:
+            tenant_ledger = self.ledger.for_tenant(tenant_id)
+            records = tenant_ledger.list(limit=self.MAX_RECORDS_SCANNED)
+        except Exception:
+            # A ledger that cannot be read must not take the decision path down with it. The check sees
+            # an empty list and says so; it does not get to claim it verified anything.
+            return []
+
+        orders: list[RecentOrder] = []
+        for record in records:
+            execution = record.execution
+            if execution is None or execution.status not in self.AT_VENUE:
+                continue
+            submitted_at = execution.submitted_at or record.recorded_at
+            if parse_ts(submitted_at) < horizon:
+                break  # newest-first, so everything after this is older still
+            orders.append(
+                RecentOrder(
+                    proposal_id=record.proposal.proposal_id,
+                    symbol=record.proposal.symbol,
+                    side=record.proposal.legs[0].side,
+                    # total_quantity is a derived Decimal on the proposal; RecentOrder carries DecimalStr.
+                    total_quantity=dstr(record.proposal.total_quantity),
+                    submitted_at=submitted_at,
+                    status=execution.broker_status or execution.status,
+                )
+            )
+        return orders
 
     def build(
         self,
@@ -90,6 +146,10 @@ class BrokerContextProvider:
         now: datetime,
         recent_orders: Sequence[RecentOrder] = (),
     ) -> RiskContext:
+        # ESC-4: an explicit list from the caller wins; otherwise derive from the tenant's own chain.
+        # A control that cannot fail is worse than a disabled one, and this one could not fail because
+        # nothing populated what it reads.
+        orders = list(recent_orders) or self._recent_orders_from_ledger(tenant_id, now, policy)
         portfolio = self.broker.get_portfolio_snapshot(as_of=now)
         market = self.broker.get_market_snapshot(
             symbols=self._symbols(proposal, portfolio),
@@ -103,7 +163,7 @@ class BrokerContextProvider:
             now=now,
             market=market,
             portfolio=portfolio,
-            recent_orders=list(recent_orders),
+            recent_orders=orders,
             path_state=_resolve(self.path_state),
             aggregate_state=_resolve(self.aggregate_state),
             agent_state=_resolve(self.agent_state),
