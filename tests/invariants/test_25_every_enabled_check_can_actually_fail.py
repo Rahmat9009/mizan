@@ -10,22 +10,19 @@ Pass criterion:
   (a) EVERY enabled, implemented, blocking check is OBSERVED failing on some constructible input. The
       battery below discovers most; the ones needing a precisely shaped input get an explicit exemplar.
       A newly added check with neither is a FAILURE - the author must show their check can fail.
-  (b) NO blocking check ever reports ``passed=True`` with an empty evidence set. Evidence is any of
-      threshold / actual / data_source / snapshot_ts, or a non-empty detail. This is Hard Rule E2 turned
-      on the checks themselves: absent evidence fails closed, it does not read as a pass.
+  (b) is invariant 26 (check_passed_implies_evidence_present), which shares this battery.
   (c) A check the engine does not implement can never masquerade as a blocking pass: it is reported
       ``severity="info"`` with a stated reason, and the policy refuses to enable it at all.
 """
 from __future__ import annotations
 
-import itertools
 from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
 from mizan import risk
-from mizan.contracts import Policy, TradeProposal
+from mizan.contracts import Policy
 from mizan.contracts.policy import CHECK_IDS
 from mizan.contracts.types import format_ts
 from mizan.risk import IMPLEMENTED_CHECKS
@@ -33,20 +30,20 @@ from mizan.risk.checks import CHECK_FUNCTIONS
 
 from tests.fixtures import (
     FIXED_NOW,
-    make_agent_state,
-    make_calendar,
-    make_institutional_context,
     make_institutional_policy,
     make_option_proposal,
-    make_path_state,
-    make_portfolio_snapshot,
     make_proposal,
 )
-from tests.invariants._support import context_for, empty_book, full_book, path_and_aggregate_policy
+from tests.invariants._support import (
+    check_battery,
+    context_for,
+    iron_condor,
+    path_and_aggregate_policy,
+    policy_with,
+    rebuild_proposal,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-
-EVIDENCE_FIELDS = ("threshold", "actual", "data_source", "snapshot_ts")
 
 #: The one check structurally incapable of failing in any shipped pipeline, with the reason.
 #: ``RiskContext.recent_orders`` is a parameter of BrokerContextProvider.build defaulting to () that no
@@ -58,107 +55,21 @@ KNOWN_DEAD: dict[str, str] = {
 }
 
 
-def _has_evidence(check) -> bool:
-    if any(getattr(check, field, None) is not None for field in EVIDENCE_FIELDS):
-        return True
-    return bool((check.detail or "").strip())
-
-
-def _rebuild(proposal: TradeProposal, **overrides) -> TradeProposal:
-    """Rebuild a proposal with overrides. proposal_id and total_quantity are derived, never passed."""
-    payload = proposal.model_dump(mode="json")
-    payload.pop("proposal_id", None)
-    payload.pop("total_quantity", None)
-    payload.update(overrides)
-    return TradeProposal.build(**payload)
-
-
-def _policy_with(**dotted) -> Policy:
-    payload = path_and_aggregate_policy().model_dump(mode="json")
-    payload.pop("policy_hash", None)
-    for path, value in dotted.items():
-        cursor = payload
-        *parents, leaf = path.split(".")
-        for segment in parents:
-            cursor = cursor[segment]
-        cursor[leaf] = value
-    return Policy.build(**payload)
-
-
-def _iron_condor() -> TradeProposal:
-    leg = make_option_proposal().model_dump(mode="json")["legs"][0]
-    return _rebuild(
-        make_option_proposal(),
-        strategy="iron_condor",
-        legs=[
-            {**leg, "leg_index": 0, "side": "sell", "contract_type": "put", "strike": "170"},
-            {**leg, "leg_index": 1, "side": "buy", "contract_type": "put", "strike": "165"},
-            {**leg, "leg_index": 2, "side": "sell", "contract_type": "call", "strike": "190"},
-            {**leg, "leg_index": 3, "side": "buy", "contract_type": "call", "strike": "195"},
-        ],
-    )
-
-
-def _battery():
-    """(proposal, context, policy) triples shaped to break as many checks as possible."""
-    triples = []
-    for policy in (make_institutional_policy(), path_and_aggregate_policy()):
-        base = context_for(policy)
-        equity = base.portfolio_snapshot.equity
-        limit = policy.aggregate.max_portfolio_exposure_pct if policy.aggregate else "0.6"
-        contexts = (
-            base,
-            context_for(policy, market_snapshot=None),
-            context_for(policy, portfolio_snapshot=None),
-            context_for(policy, path_state=None),
-            context_for(policy, aggregate_state=None),
-            context_for(
-                policy,
-                path_state=make_path_state(
-                    current_drawdown_pct="0.45", consecutive_losses=12, days_under_water=400
-                ),
-            ),
-            context_for(policy, aggregate_state=full_book(equity, limit)),
-            context_for(policy, aggregate_state=empty_book()),
-            context_for(
-                policy,
-                portfolio_snapshot=make_portfolio_snapshot(buying_power="1", equity="10", cash="1"),
-            ),
-            context_for(policy, response_level=5),
-            context_for(
-                policy,
-                calendar=make_calendar(
-                    session="closed", is_holiday_or_half_day=True, minutes_to_close=0
-                ),
-            ),
-            context_for(
-                policy,
-                agent_state=make_agent_state(
-                    daily_notional_used="99999999", daily_order_count=9999, open_positions=999
-                ),
-            ),
-            make_institutional_context(),
-        )
-        proposals = (make_proposal(), make_option_proposal(), _iron_condor())
-        triples.extend((p, c, policy) for c, p in itertools.product(contexts, proposals))
-    return triples
-
-
 def _exemplars():
     """Checks needing a precisely shaped input the battery does not stumble into."""
     proposal = make_proposal()
     option = make_option_proposal()
     near = (FIXED_NOW + timedelta(days=1)).date().isoformat()
     return {
-        "restricted_symbol": (proposal, _policy_with(**{"restricted.symbols": [proposal.symbol]})),
+        "restricted_symbol": (proposal, policy_with(**{"restricted.symbols": [proposal.symbol]})),
         "restricted_strategy": (
             proposal,
-            _policy_with(**{"restricted.strategies": [proposal.strategy]}),
+            policy_with(**{"restricted.strategies": [proposal.strategy]}),
         ),
-        "leg_limit": (_iron_condor(), _policy_with(**{"order.max_legs": 2})),
-        "position_limit": (proposal, _policy_with(**{"order.max_quantity": "1"})),
+        "leg_limit": (iron_condor(), policy_with(**{"order.max_legs": 2})),
+        "position_limit": (proposal, policy_with(**{"order.max_quantity": "1"})),
         "proposal_expiry": (
-            _rebuild(
+            rebuild_proposal(
                 proposal,
                 expires_at=format_ts(FIXED_NOW - timedelta(hours=1)),
                 created_at=format_ts(FIXED_NOW - timedelta(hours=2)),
@@ -166,21 +77,21 @@ def _exemplars():
             path_and_aggregate_policy(),
         ),
         "days_to_expiry": (
-            _rebuild(
+            rebuild_proposal(
                 option,
                 legs=[
                     {**leg, "expiry": near}
                     for leg in option.model_dump(mode="json")["legs"]
                 ],
             ),
-            _policy_with(**{"options.min_days_to_expiry": 30}),
+            policy_with(**{"options.min_days_to_expiry": 30}),
         ),
     }
 
 
 def _observed_failing() -> set[str]:
     failing: set[str] = set()
-    for proposal, context, policy in _battery():
+    for proposal, context, policy in check_battery():
         for check in risk.evaluate(proposal, context, policy).checks:
             if not check.passed and policy.is_check_enabled(check.check_id):
                 failing.add(check.check_id)
@@ -256,24 +167,6 @@ def test_the_battery_is_not_vacuous():
     observed = _observed_failing()
     assert len(observed) >= 25, (
         f"only {len(observed)} checks were ever observed failing: {sorted(observed)}"
-    )
-
-
-# --- (b) a pass must carry evidence ----------------------------------------------------------------
-def test_check_passed_implies_evidence_present():
-    offenders: set[str] = set()
-    for proposal, context, policy in _battery():
-        for check in risk.evaluate(proposal, context, policy).checks:
-            if not policy.is_check_enabled(check.check_id):
-                continue
-            if check.severity != "blocking" or not check.passed:
-                continue
-            if not _has_evidence(check):
-                offenders.add(check.check_id)
-    assert not offenders, (
-        f"these blocking checks reported passed=True with no evidence at all: {sorted(offenders)}. "
-        "A pass with an empty evidence set is indistinguishable from a check that never ran; E2 applied "
-        "to the checks themselves means absent evidence fails closed, it does not read as a pass."
     )
 
 

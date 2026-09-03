@@ -44,6 +44,7 @@ from mizan.contracts.errors import (
     TenantForbidden,
     ValidationFailed,
 )
+from mizan.execution import assert_kill_switch_covers_every_worker
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from mizan.sdk import Mizan
@@ -157,6 +158,13 @@ def create_app(
     settings = config if config is not None else ApiConfig()
     store: TokenStore = tokens if tokens is not None else StaticTokenStore()
     resolve = mizan if callable(mizan) else (lambda _tenant_id: mizan)
+
+    # F-28 class: refuse to boot a multi-worker deployment behind a process-local kill switch. Checked
+    # here, at construction, because the alternative is discovering it during the incident the switch
+    # exists for. A resolver-form `mizan` has no single switch to inspect, so the check uses whichever
+    # instance is reachable; a deployment with none is left to the gate's own guards.
+    if not callable(mizan):
+        assert_kill_switch_covers_every_worker(mizan.kill_switch)
     clock = _clock_of(mizan)
     limiter = FixedWindowRateLimiter(settings.evaluate_rate_limit, clock=clock)
     auth_limiter = FixedWindowRateLimiter(settings.auth_rate_limit, clock=clock)

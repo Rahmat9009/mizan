@@ -47,7 +47,12 @@ from mizan.contracts import (
     sorted_reason_codes,
     uuid7,
 )
-from mizan.contracts.errors import AuthorizationError, LiveTradingForbidden, MizanError
+from mizan.contracts.errors import (
+    AuthorizationError,
+    ConfigurationError,
+    LiveTradingForbidden,
+    MizanError,
+)
 from mizan.execution.reconciliation import (
     DISCREPANCY_STATUSES,
     Reconciler,
@@ -64,6 +69,9 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 
 __all__ = [
     "CHECK_ORDER",
+    "WORKER_COUNT_VARIABLES",
+    "assert_kill_switch_covers_every_worker",
+    "configured_worker_count",
     "DISCREPANCY_STATUSES",
     "EnvKillSwitch",
     "ExecutionConfig",
@@ -93,6 +101,65 @@ CHECK_ORDER = (
 )
 
 
+#: Every spelling of "how many workers" this build knows. Checked at application construction.
+WORKER_COUNT_VARIABLES = (
+    "WEB_CONCURRENCY",      # uvicorn / gunicorn / many PaaS
+    "UVICORN_WORKERS",
+    "GUNICORN_WORKERS",
+    "MIZAN_WORKERS",
+)
+
+
+def configured_worker_count() -> int:
+    """The largest worker count any recognised variable asks for. Unparseable means 'more than one'.
+
+    Fails toward refusing to boot: a variable we cannot read is not evidence of a single worker.
+    """
+    highest = 1
+    for name in WORKER_COUNT_VARIABLES:
+        raw = os.getenv(name)
+        if raw is None or not raw.strip():
+            continue
+        try:
+            highest = max(highest, int(raw.strip()))
+        except ValueError:
+            return 2
+    return highest
+
+
+def assert_kill_switch_covers_every_worker(kill_switch: KillSwitch) -> None:
+    """Refuse to boot a multi-worker deployment behind a process-local kill switch (F-28 class).
+
+    The kill switch is the control an operator reaches for when everything else has already failed, and
+    it is the one this product demonstrates. Behind N workers with a process-local switch, tripping it
+    returns 200 and ``active: true``, stops the single worker that served the request, and leaves the
+    other N-1 trading - the worst possible failure for a safety control, because it reports success.
+
+    Refusing at construction is deliberate: the alternative is discovering it during the incident the
+    switch exists for. Set one worker, or supply a kill switch whose state is shared across processes
+    (``shared_state = True``).
+    """
+    workers = configured_worker_count()
+    if workers <= 1:
+        return
+    if getattr(kill_switch, "shared_state", False):
+        return
+    named = ", ".join(f"{n}={os.getenv(n)!r}" for n in WORKER_COUNT_VARIABLES if os.getenv(n))
+    # The variable name, the count and the remedy go in `message`, not `detail`: this error aborts
+    # startup, so its only audience is the operator reading the crash, and MizanError.__str__ renders
+    # `message` alone. None of it is sensitive - a worker count is not a credential.
+    raise ConfigurationError(
+        message=(
+            "refusing to start: this deployment asks for multiple worker processes but the kill switch "
+            "is process-local, so tripping it would stop one worker and leave the others trading. "
+            f"{named or 'a worker variable'} requests {workers} workers and "
+            f"{type(kill_switch).__name__}.shared_state is False. Run a single worker, or supply a kill "
+            "switch whose state is shared across processes (shared_state = True)."
+        ),
+        detail=f"worker variables: {named or 'none set'}",
+    )
+
+
 def _env_flag(name: str, *, default: bool) -> bool:
     raw = os.getenv(name)
     if raw is None:
@@ -109,11 +176,23 @@ def _env_flag(name: str, *, default: bool) -> bool:
 class KillSwitch(Protocol):
     """Consulted immediately before every broker mutation. Must not depend on the policy engine."""
 
+    #: True only for a switch whose state is shared across PROCESSES. A process-local switch stops the
+    #: worker that read it and no other, so an operator who trips it gets a success response while the
+    #: remaining workers keep trading. Implementations default to False by omission, which fails safe.
+    shared_state: bool
+
     def is_active(self) -> bool: ...
 
 
 class InMemoryKillSwitch:
-    """Process-local kill switch. Thread-safe; the state is a single boolean."""
+    """Process-local kill switch. Thread-safe; the state is a single boolean.
+
+    NOT safe under multiple worker processes: each worker gets its own instance, so tripping it stops
+    one worker and leaves the rest trading. ``assert_kill_switch_covers_every_worker`` refuses to boot
+    that configuration rather than letting the operator discover it during an incident.
+    """
+
+    shared_state = False
 
     def __init__(self, *, active: bool = False) -> None:
         self._lock = threading.Lock()
@@ -141,6 +220,10 @@ class EnvKillSwitch:
     """
 
     variable = "MIZAN_KILL_SWITCH"
+
+    #: Also False. The value is re-read on every call, but a running worker cannot see an edit made to
+    #: the parent's environment after it forked, so this is a deploy-time control, not a runtime one.
+    shared_state = False
 
     def is_active(self) -> bool:
         raw = os.getenv(self.variable)

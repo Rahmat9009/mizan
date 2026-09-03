@@ -524,3 +524,115 @@ def unstressed_context(policy: Policy, **overrides: Any) -> RiskContext:
     )
     fields.update(overrides)
     return context_for(policy, **fields)
+
+
+# ---------------------------------------------------------------------------------------------------
+# Check-catalogue battery (invariants 25 and 26). Shared so both assert against ONE definition of
+# "every check, driven hard" - two batteries would drift and the weaker one would silently win.
+# ---------------------------------------------------------------------------------------------------
+EVIDENCE_FIELDS = ("threshold", "actual", "data_source", "snapshot_ts")
+
+
+def has_evidence(check) -> bool:
+    if any(getattr(check, field, None) is not None for field in EVIDENCE_FIELDS):
+        return True
+    return bool((check.detail or "").strip())
+
+
+def rebuild_proposal(proposal: TradeProposal, **overrides) -> TradeProposal:
+    """Rebuild a proposal with overrides. proposal_id and total_quantity are derived, never passed."""
+    payload = proposal.model_dump(mode="json")
+    payload.pop("proposal_id", None)
+    payload.pop("total_quantity", None)
+    payload.update(overrides)
+    return TradeProposal.build(**payload)
+
+
+def policy_with(**dotted) -> Policy:
+    payload = path_and_aggregate_policy().model_dump(mode="json")
+    payload.pop("policy_hash", None)
+    for path, value in dotted.items():
+        cursor = payload
+        *parents, leaf = path.split(".")
+        for segment in parents:
+            cursor = cursor[segment]
+        cursor[leaf] = value
+    return Policy.build(**payload)
+
+
+def iron_condor():
+    """A genuine four-leg structure. Needed because the contract enforces per-strategy leg counts, so a
+    multi-leg proposal cannot be faked by duplicating a single-leg one."""
+    from tests.fixtures import make_option_proposal
+
+    leg = make_option_proposal().model_dump(mode="json")["legs"][0]
+    return rebuild_proposal(
+        make_option_proposal(),
+        strategy="iron_condor",
+        legs=[
+            {**leg, "leg_index": 0, "side": "sell", "contract_type": "put", "strike": "170"},
+            {**leg, "leg_index": 1, "side": "buy", "contract_type": "put", "strike": "165"},
+            {**leg, "leg_index": 2, "side": "sell", "contract_type": "call", "strike": "190"},
+            {**leg, "leg_index": 3, "side": "buy", "contract_type": "call", "strike": "195"},
+        ],
+    )
+
+
+def check_battery():
+    """(proposal, context, policy) triples shaped to break as many checks as possible."""
+    import itertools
+
+    from tests.fixtures import (
+        make_agent_state,
+        make_calendar,
+        make_institutional_context,
+        make_institutional_policy,
+        make_option_proposal,
+        make_path_state,
+        make_portfolio_snapshot,
+        make_proposal,
+    )
+
+    triples = []
+    for policy in (make_institutional_policy(), path_and_aggregate_policy()):
+        base = context_for(policy)
+        equity = base.portfolio_snapshot.equity
+        limit = policy.aggregate.max_portfolio_exposure_pct if policy.aggregate else "0.6"
+        contexts = (
+            base,
+            context_for(policy, market_snapshot=None),
+            context_for(policy, portfolio_snapshot=None),
+            context_for(policy, path_state=None),
+            context_for(policy, aggregate_state=None),
+            context_for(
+                policy,
+                path_state=make_path_state(
+                    current_drawdown_pct="0.45", consecutive_losses=12, days_under_water=400
+                ),
+            ),
+            context_for(policy, aggregate_state=full_book(equity, limit)),
+            context_for(policy, aggregate_state=empty_book()),
+            context_for(
+                policy,
+                portfolio_snapshot=make_portfolio_snapshot(buying_power="1", equity="10", cash="1"),
+            ),
+            context_for(policy, response_level=5),
+            context_for(
+                policy,
+                calendar=make_calendar(
+                    session="closed", is_holiday_or_half_day=True, minutes_to_close=0
+                ),
+            ),
+            context_for(
+                policy,
+                agent_state=make_agent_state(
+                    daily_notional_used="99999999", daily_order_count=9999, open_positions=999
+                ),
+            ),
+            make_institutional_context(),
+        )
+        proposals = (make_proposal(), make_option_proposal(), iron_condor())
+        triples.extend((p, c, policy) for c, p in itertools.product(contexts, proposals))
+    return triples
+
+
