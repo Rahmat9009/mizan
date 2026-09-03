@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from mizan.audit import ChainVerification, verify_stored_rows
-from mizan.contracts.canonical import ENGINE_VERSION
+from mizan.contracts.canonical import ENGINE_VERSION, strict_json_loads
 
 __all__ = ["ChainFile", "main", "read_chain_file"]
 
@@ -120,7 +120,7 @@ def _read_sqlite(path: Path) -> ChainFile:
         ) from exc
     finally:
         connection.close()
-    payloads = [json.loads(text) for _sequence, text in rows]
+    payloads = [strict_json_loads(text) for _sequence, text in rows]
     tenants, decisions, control_events = _classify(payloads)
     return ChainFile(
         path=path,
@@ -138,7 +138,7 @@ def _read_json_lines(path: Path) -> ChainFile:
     items: list[str]
     if stripped.startswith("["):
         try:
-            loaded = json.loads(stripped)
+            loaded = strict_json_loads(stripped)
         except ValueError as exc:
             raise ChainFileError(f"{path} is not valid JSON: {exc}") from exc
         if not isinstance(loaded, list):
@@ -154,7 +154,7 @@ def _read_json_lines(path: Path) -> ChainFile:
     payloads: list[dict[str, object]] = []
     for number, item in enumerate(items, start=1):
         try:
-            payload = json.loads(item)
+            payload = strict_json_loads(item)
         except ValueError as exc:
             raise ChainFileError(f"{path} line {number} is not valid JSON: {exc}") from exc
         if not isinstance(payload, dict) or not isinstance(payload.get("sequence"), int):
@@ -206,6 +206,14 @@ def _report(chain: ChainFile, result: ChainVerification) -> str:
             "  Every audit_hash recomputes from the record's own content and every record links to",
             f"  its predecessor. {result.detail}.",
         ]
+        if result.head_hash:
+            lines += [
+                "",
+                f"  head      : sequence {result.head_sequence}, {result.head_hash}",
+                "  Keep that head. A chain proves its records are consistent with each other; it",
+                "  cannot prove they are ALL of them, because deleting the last few takes the",
+                "  evidence they existed with them. Re-run with --expect-head to detect that.",
+            ]
     else:
         lines += [
             f"  RESULT: CHAIN BROKEN at sequence {result.first_bad_sequence}",
@@ -214,6 +222,48 @@ def _report(chain: ChainFile, result: ChainVerification) -> str:
             "  sequence can no longer be trusted, and decision replay of them proves nothing.",
         ]
     return "\n".join(lines)
+
+
+
+def _check_anchor(
+    result: ChainVerification, expect_head: str | None, expect_length: int | None
+) -> ChainVerification:
+    """Compare a verified chain against what the holder already knew about it.
+
+    Everything else this module checks is internal: the records agree with each other. Truncation is
+    the one attack that leaves a perfectly self-consistent chain, because the proof that the deleted
+    records ever existed is exactly what was deleted. Nothing stored beside them helps either - an
+    attacker who can remove records can remove a counter just as easily.
+
+    So the only witness is one the customer already holds. Certificate Transparency solves this by
+    publishing a signed tree head rather than letting the log describe itself; this is the small
+    version of the same idea, and the reason the head is printed on every successful verification.
+    """
+    if not result.ok:
+        return result
+    if expect_length is not None and result.length != expect_length:
+        missing = expect_length - result.length
+        return result.model_copy(update={
+            "ok": False,
+            "first_bad_sequence": result.length + 1 if missing > 0 else None,
+            "detail": (
+                f"expected {expect_length} link(s) and found {result.length}: "
+                + (f"{missing} record(s) have been removed from the end of this chain"
+                   if missing > 0 else
+                   f"{-missing} more record(s) than expected - this is not the chain you anchored")
+            ),
+        })
+    if expect_head is not None and result.head_hash != expect_head:
+        return result.model_copy(update={
+            "ok": False,
+            "first_bad_sequence": result.head_sequence,
+            "detail": (
+                f"the chain is internally consistent but its head is {result.head_hash}, not the "
+                f"{expect_head} you anchored: records have been removed from the end, or this is a "
+                f"different chain"
+            ),
+        })
+    return result
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -242,6 +292,21 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="print nothing; report the verdict through the exit status alone",
     )
+    parser.add_argument(
+        "--expect-head",
+        metavar="HASH",
+        help=(
+            "the audit_hash you last saw at the end of this chain. A hash chain cannot detect its "
+            "own truncation - delete the last records and the rest still verifies - so completeness "
+            "can only be checked against a value held OUTSIDE the file. This is that check."
+        ),
+    )
+    parser.add_argument(
+        "--expect-length",
+        type=int,
+        metavar="N",
+        help="the number of links you expect; fewer means records were removed from the end",
+    )
     return parser
 
 
@@ -256,6 +321,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EXIT_UNREADABLE
 
     result = verify_stored_rows(chain.rows)
+    result = _check_anchor(result, arguments.expect_head, arguments.expect_length)
     if not arguments.quiet:
         if arguments.as_json:
             print(
@@ -269,6 +335,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "control_events": chain.control_events,
                         "ok": result.ok,
                         "first_bad_sequence": result.first_bad_sequence,
+                        "head_sequence": result.head_sequence,
+                        "head_hash": result.head_hash,
                         "detail": result.detail,
                     },
                     indent=2,

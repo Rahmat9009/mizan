@@ -22,7 +22,6 @@ full privileges is refused by the database rather than by a Python guard it coul
 
 from __future__ import annotations
 
-import json
 import re
 import sqlite3
 import threading
@@ -55,6 +54,7 @@ from mizan.contracts.canonical import (
     library_versions,
     record_hash_for,
     redact,
+    strict_json_loads,
     uuid7,
 )
 from mizan.contracts.errors import (
@@ -120,6 +120,21 @@ class ChainVerification(ContractModel):
     length: int = Field(ge=0)
     first_bad_sequence: int | None = None
     detail: str = ""
+    head_sequence: int | None = None
+    head_hash: str | None = None
+    """The last link, so completeness can be checked from OUTSIDE the file.
+
+    A hash chain proves that the records it contains are consistent with each other. It cannot prove
+    that they are all of them: delete the last two records and every remaining hash still chains
+    perfectly, because the evidence that they existed went with them. Verified by probe - a truncated
+    ledger reports ok=True.
+
+    No amount of care inside the file fixes this; anyone able to delete the records can delete a
+    counter beside them just as easily. The only thing that detects truncation is a value the customer
+    already holds, so the head is reported here and `verify_chain --expect-head/--expect-length` checks
+    it. This is the same reason Certificate Transparency publishes a signed tree head rather than
+    trusting the log to describe itself.
+    """
 
 
 def verify_chain_records(records: Iterable[DecisionRecord]) -> ChainVerification:
@@ -178,7 +193,11 @@ def verify_chain_records(records: Iterable[DecisionRecord]) -> ChainVerification
                 )
         previous = record
 
-    return ChainVerification(ok=True, length=count, detail=f"{count} record(s) verified")
+    return ChainVerification(
+        ok=True, length=count, detail=f"{count} record(s) verified",
+        head_sequence=getattr(previous, "sequence", None),
+        head_hash=getattr(previous, "audit_hash", None),
+    )
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -327,7 +346,12 @@ def _chain_verification(
         return ChainVerification(
             ok=False, length=total, first_bad_sequence=unreadable[0], detail=unreadable[1]
         )
-    return ChainVerification(ok=True, length=total, detail=f"{total} record(s) verified")
+    head = entries[-1] if entries else None
+    return ChainVerification(
+        ok=True, length=total, detail=f"{total} record(s) verified",
+        head_sequence=getattr(head, "sequence", None),
+        head_hash=getattr(head, "audit_hash", None),
+    )
 
 
 def verify_stored_payloads(payloads: Sequence[tuple[int, Mapping[str, Any]]]) -> ChainVerification:
@@ -383,7 +407,10 @@ def verify_stored_payloads(payloads: Sequence[tuple[int, Mapping[str, Any]]]) ->
                 )
         previous_hash = stored_hash
         previous_sequence = sequence
-    return ChainVerification(ok=True, length=count, detail=f"{count} record(s) verified")
+    return ChainVerification(
+        ok=True, length=count, detail=f"{count} record(s) verified",
+        head_sequence=previous_sequence, head_hash=previous_hash,
+    )
 
 
 def verify_stored_rows(rows: Sequence[tuple[int, str]]) -> ChainVerification:
@@ -397,7 +424,7 @@ def verify_stored_rows(rows: Sequence[tuple[int, str]]) -> ChainVerification:
     unreadable: tuple[int, str] | None = None
     for sequence, text in rows:
         try:
-            payload = json.loads(text)
+            payload = strict_json_loads(text)
             payloads.append((sequence, payload))
             entries.append(load_chain_entry(payload))
         except (ValidationError, ValueError) as exc:
@@ -612,7 +639,7 @@ class _TenantLedgerBase:
 def _decision_from_json(text: str, *, sequence_hint: int | None = None) -> DecisionRecord:
     """Validate a stored decision in full. A record that fails the contract is never handed back."""
     try:
-        record = DecisionRecord.model_validate(json.loads(text))
+        record = DecisionRecord.model_validate(strict_json_loads(text))
     except (ValidationError, ValueError) as exc:
         where = "" if sequence_hint is None else f" at sequence {sequence_hint}"
         raise ChainIntegrityError(
@@ -623,7 +650,7 @@ def _decision_from_json(text: str, *, sequence_hint: int | None = None) -> Decis
 
 def _control_event_from_json(text: str) -> ControlEvent:
     try:
-        return ControlEvent.model_validate(json.loads(text))
+        return ControlEvent.model_validate(strict_json_loads(text))
     except (ValidationError, ValueError) as exc:
         raise ChainIntegrityError(
             detail=f"the stored control event no longer satisfies its own contract: {exc}"
@@ -671,7 +698,7 @@ class InMemoryTenantLedger(_TenantLedgerBase):
         self._index[row.entry_id] = len(self._rows)
         self._rows.append(row)
         self._head_sequence = row.sequence
-        self._head_hash = json.loads(row.record_json)["audit_hash"]
+        self._head_hash = strict_json_loads(row.record_json)["audit_hash"]
 
     # -- reads ------------------------------------------------------------------------------------
     def get(self, decision_id: str) -> DecisionRecord:
@@ -713,7 +740,7 @@ class InMemoryTenantLedger(_TenantLedgerBase):
         """Every link of this tenant's chain - decisions and control events - in sequence order."""
         with self._lock:
             rows = list(self._rows)
-        return [load_chain_entry(json.loads(row.record_json)) for row in rows]
+        return [load_chain_entry(strict_json_loads(row.record_json)) for row in rows]
 
     def verify_chain(self) -> ChainVerification:
         """Re-derive every hash and every link from what is stored, decisions and control events alike."""
@@ -1046,7 +1073,7 @@ class SqliteTenantLedger(_TenantLedgerBase):
 
     def chain_entries(self) -> list[ChainEntry]:
         """Every link of this tenant's chain - decisions and control events - in sequence order."""
-        return [load_chain_entry(json.loads(text)) for _sequence, text in self._chain_rows()]
+        return [load_chain_entry(strict_json_loads(text)) for _sequence, text in self._chain_rows()]
 
     def verify_chain(self) -> ChainVerification:
         """Re-derive every hash and every link from the file, decisions and control events alike."""

@@ -200,6 +200,36 @@ def proposal_id_for(payload: Mapping[str, Any] | BaseModel) -> str:
     return _hash_without(payload, "proposal_id", "reasoning")
 
 
+
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    seen: set[str] = set()
+    for key, _value in pairs:
+        if key in seen:
+            raise ValueError(
+                f"duplicate key {key!r}: this record does not have one unambiguous reading"
+            )
+        seen.add(key)
+    return dict(pairs)
+
+
+def strict_json_loads(text: str | bytes) -> Any:
+    """Parse a STORED record, refusing any document that two conforming parsers could read differently.
+
+    JSON does not define what a duplicate key means. Python, Go and jq keep the LAST occurrence;
+    other conforming parsers keep the first. So bytes carrying ``"verdict"`` twice are a record whose
+    content depends on who is reading it - and because we hash what we parsed, the hash still matches
+    and the chain still verifies. An attacker with write access to the ledger gets a record that reads
+    APPROVE to us and REJECT to the customer's own verifier, with both of us reporting an intact chain.
+
+    That is fatal to the specific promise being made here, which is not "our tool says this is fine"
+    but "check it yourself, with your own code, and get the same answer". A record that can be read two
+    ways breaks the agreement rather than any individual reader.
+
+    So the ambiguity is refused at the point of parsing, for every stored record, everywhere. Found by
+    adversarial probe: `tests/audit/test_chain_stress.py` re-runs it.
+    """
+    return json.loads(text, object_pairs_hook=_reject_duplicate_keys)
+
 def policy_hash_for(payload: Mapping[str, Any] | BaseModel) -> str:
     """``sha256_hex(canonical_json(policy without "policy_hash"))``."""
     return _hash_without(payload, "policy_hash")
@@ -661,6 +691,7 @@ def library_versions() -> dict[str, str]:
 
 
 __all__ = [
+    "strict_json_loads",
     "DECIMAL_CONTEXT",
     "ENGINE_VERSION",
     "IDEMPOTENCY_KEY_PREFIX",
