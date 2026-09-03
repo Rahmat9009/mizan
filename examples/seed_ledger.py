@@ -75,6 +75,18 @@ def main() -> int:
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
+    # An append-only ledger APPENDS, so running this twice makes eight records and quietly breaks the
+    # "4/4 reproduced identically" the README tells you to expect. Refuse rather than surprise: the
+    # one thing this file must not do is make the documented command wrong on its second run.
+    existing = SqliteLedger(args.out).for_tenant(TENANT).verify_chain()
+    if existing.length:
+        print(f"{args.out}/{TENANT}.sqlite already holds {existing.length} record(s).")
+        print("This ledger is append-only, so seeding again would add to them rather than replace")
+        print("them. Remove the directory first, or seed somewhere else:")
+        print(f"    python examples/seed_ledger.py --out {args.out}-2")
+        return 1
+
+
     from tests.fixtures import FIXED_NOW
 
     tenant = SqliteLedger(args.out).for_tenant(TENANT)

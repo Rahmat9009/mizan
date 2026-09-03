@@ -1,6 +1,6 @@
 MIZAN - demo transcript
-generated     2026-09-03T22:26:54Z
-repository    mizan @ 7542a18
+generated     2026-09-03T23:31:29Z
+repository    mizan @ 03ad618
 python        3.12.4
 ledger        evidence/live-ledger
 credentials   none used; this run is read-only and places no order
@@ -8,7 +8,7 @@ credentials   none used; this run is read-only and places no order
 Three sections: what Mizan takes away, what the policy decides, and what anyone can check.
 
 ================================================================================================
-SECTION 1 of 3   Alpaca's official MCP server, and the seven tools Mizan cannot send    [2026-09-03T22:26:54Z]
+SECTION 1 of 3   Alpaca's official MCP server, and the seven tools Mizan cannot send    [2026-09-03T23:31:29Z]
 ================================================================================================
 Alpaca's own MCP server is a separate process, started here from its pinned package. It is
 asked what it can do. No credential is needed to ask, and none is used: the point of this
@@ -69,7 +69,7 @@ $ python scripts/mizan_cli.py mcp-call close_all_positions --no-credentials
 PASS     close_all_positions is refused by the client, before a byte reaches Alpaca  -  exit 2 (2 == denied)
 
 ================================================================================================
-SECTION 2 of 3   Two policies, one proposal, one instant, opposite verdicts    [2026-09-03T22:27:00Z]
+SECTION 2 of 3   Two policies, one proposal, one instant, opposite verdicts    [2026-09-03T23:31:39Z]
 ================================================================================================
 These are not fixtures. Both decisions below were taken during the live paper run, against
 Alpaca's own quotes, and both are links in the hash chain. The proposal is identical, the
@@ -159,7 +159,7 @@ $ python scripts/mizan_cli.py replay 01a068b2-69b2-757e-9d3e-aae44bd59b41 --ledg
 PASS     replayed under the defined-risk policy, the same recorded proposal APPROVEs  -  exit 0
 
 ================================================================================================
-SECTION 3 of 3   The whole chain verified and every decision replayed, no credentials    [2026-09-03T22:27:02Z]
+SECTION 3 of 3   The whole chain verified and every decision replayed, no credentials    [2026-09-03T23:31:41Z]
 ================================================================================================
 Nothing below reads an account, opens a socket or needs a key. Anyone handed the .sqlite
 file and this repository gets the same two answers - which is the point, because evidence
@@ -179,6 +179,11 @@ $ python -m mizan.audit.verify_chain evidence/live-ledger/tenant-a.sqlite
     RESULT: CHAIN VERIFIED
     Every audit_hash recomputes from the record's own content and every record links to
     its predecessor. 12 record(s) verified.
+  
+    head      : sequence 12, 34a9ec303577a4c63a8001a009b35a115f9da9ffd1a157761f0ad05ed5ae4af8
+    Keep that head. A chain proves its records are consistent with each other; it
+    cannot prove they are ALL of them, because deleting the last few takes the
+    evidence they existed with them. Re-run with --expect-head to detect that.
   [exit 0]
 
 PASS     the hash chain verifies offline  -  exit 0
@@ -280,8 +285,8 @@ $ python -m mizan.replay --ledger evidence/live-ledger
 PASS     all 12 differences against the shipped records are attributed to the engine version, not reported as tampering  -  exit 1; 12/12 carry the version explanation
 
 ================================================================================================
-RESULT    [2026-09-03T22:27:04Z]
+RESULT    [2026-09-03T23:31:43Z]
 ================================================================================================
 ALL SECTIONS PASSED
 
-transcript    evidence/demo-transcript-20260903T222654Z.txt
+transcript    evidence/demo-transcript-20260903T233129Z.txt
