@@ -1851,6 +1851,132 @@ def _overnight_exposure(
 # ---------------------------------------------------------------------------------------------------
 # Registry -- the order lives in CHECK_IDS, not here
 # ---------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------------
+# Account capability (REQ-35): is this account PERMITTED to do this at all?
+# ---------------------------------------------------------------------------------------------------
+def account_capability(
+    proposal: TradeProposal, context: RiskContext, policy: Policy
+) -> CheckResult | None:
+    """What the broker says about the account, before anything is asked of it.
+
+    Every other check asks whether the ORDER is sound. This one asks whether the ACCOUNT may place it -
+    a different question with a different failure mode. Alpaca will reject a blocked account or an
+    under-privileged options order at submission; discovering that at the venue means the decision
+    record says APPROVE for an order that was never placeable, which is precisely the gap between "we
+    decided" and "it happened" that this product exists to close.
+
+    Fails closed throughout (E2): a field the broker did not report is ACCOUNT_STATE_MISSING, never an
+    assumption of permission. A permissive default here would be a control that protects nobody.
+    """
+    account = policy.account
+    if account is None:
+        return None
+    state = context.account_state
+    if state is None:
+        return missing(
+            "account_capability",
+            ReasonCode.ACCOUNT_STATE_MISSING,
+            "an account capability check is enabled but the context carries no account state",
+        )
+
+    for field, description in (
+        ("trading_blocked", "trading is blocked on this account"),
+        ("account_blocked", "the account is blocked"),
+        ("trade_suspended_by_user", "trading is suspended by the account holder"),
+    ):
+        value = getattr(state, field)
+        if value is None:
+            return missing(
+                "account_capability",
+                ReasonCode.ACCOUNT_STATE_MISSING,
+                f"the broker did not report {field}; permission is not assumed",
+                snapshot_ts=state.as_of,
+            )
+        if value:
+            return fail(
+                "account_capability",
+                policy,
+                ReasonCode.ACCOUNT_TRADING_BLOCKED,
+                snapshot_ts=state.as_of,
+                detail=description,
+            )
+
+    if account.require_active:
+        if state.status is None:
+            return missing(
+                "account_capability",
+                ReasonCode.ACCOUNT_STATE_MISSING,
+                "the broker did not report an account status",
+                snapshot_ts=state.as_of,
+            )
+        if state.status.strip().upper() != "ACTIVE":
+            return fail(
+                "account_capability",
+                policy,
+                ReasonCode.ACCOUNT_NOT_ACTIVE,
+                snapshot_ts=state.as_of,
+                detail=f"account status is {state.status!r}, not ACTIVE",
+            )
+
+    required_level = account.min_options_trading_level
+    if required_level is not None and proposal.asset_class == "equity_option":
+        if state.options_trading_level is None:
+            return missing(
+                "account_capability",
+                ReasonCode.ACCOUNT_STATE_MISSING,
+                "the broker did not report an options trading level",
+                snapshot_ts=state.as_of,
+            )
+        if state.options_trading_level < required_level:
+            return fail(
+                "account_capability",
+                policy,
+                ReasonCode.OPTIONS_LEVEL_INSUFFICIENT,
+                threshold=Decimal(required_level),
+                actual=Decimal(state.options_trading_level),
+                snapshot_ts=state.as_of,
+                detail=(
+                    f"options trading level {state.options_trading_level} is below the required "
+                    f"{required_level}"
+                ),
+            )
+
+    # A closing sell is not a short. Blocking one would strand a position on an account that had its
+    # shorting permission withdrawn - a control causing the harm it exists to prevent.
+    opening_short = proposal.intent != "close" and any(leg.side == "sell" for leg in proposal.legs)
+    if account.require_shorting_enabled_for_short_legs and opening_short:
+        if state.shorting_enabled is None:
+            return missing(
+                "account_capability",
+                ReasonCode.ACCOUNT_STATE_MISSING,
+                "the broker did not report whether shorting is enabled",
+                snapshot_ts=state.as_of,
+            )
+        if not state.shorting_enabled:
+            return fail(
+                "account_capability",
+                policy,
+                ReasonCode.SHORTING_NOT_PERMITTED,
+                snapshot_ts=state.as_of,
+                detail="the account may not sell short and this proposal opens a short leg",
+            )
+
+    return ok(
+        "account_capability",
+        policy,
+        source=state.source,
+        snapshot_ts=state.as_of,
+        detail=(
+            f"account status {state.status!r}, not blocked or suspended"
+            + (
+                f", options level {state.options_trading_level} meets {required_level}"
+                if required_level is not None and proposal.asset_class == "equity_option"
+                else ""
+            )
+        ),
+    )
+
+
 CHECK_FUNCTIONS: dict[str, CheckFunction] = {
     "market_data_presence": market_data_presence,
     "portfolio_state_presence": portfolio_state_presence,
@@ -1888,4 +2014,5 @@ CHECK_FUNCTIONS: dict[str, CheckFunction] = {
     "session_window": session_window,
     "options_short_gamma_limit": options_short_gamma_limit,
     "options_short_vega_limit": options_short_vega_limit,
+    "account_capability": account_capability,
 }

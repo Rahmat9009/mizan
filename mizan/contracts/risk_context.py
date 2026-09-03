@@ -220,6 +220,33 @@ class AgentState(ContractModel):
     calibration: Calibration | None = None
 
 
+class AccountState(ContractModel):
+    """What the BROKER says about the account itself, as opposed to what is in it (REQ-35).
+
+    PortfolioSnapshot answers "what do I hold and what can I afford". This answers "is this account
+    permitted to do the thing at all" - a separate question with a separate failure mode, and one the
+    engine could not previously ask because there was nowhere to put the answer.
+
+    Every field is optional because a broker may not report it, and E2 applies: a check that needs a
+    field the account did not supply BLOCKS on ACCOUNT_STATE_MISSING rather than assuming permission.
+    """
+
+    as_of: Rfc3339
+    # NO account_number, deliberately. Three reasons, and they agree: a broker account number is
+    # sensitive (F-17) and `redact` strips that key by design (REQ-2), so persisting one would make
+    # every record carrying an account unbuildable - the guard test walking all contract fields caught
+    # exactly that. The capability gate does not need it. And the one thing that does - the two-signal
+    # paper proof - reads it live in the adapter and never persists it, which is where an identifier
+    # belongs. This field's absence is a decision, not an oversight.
+    status: NonEmptyStr | None = None
+    trading_blocked: bool | None = None
+    account_blocked: bool | None = None
+    trade_suspended_by_user: bool | None = None
+    shorting_enabled: bool | None = None
+    options_trading_level: Count | None = None
+    source: NonEmptyStr | None = None
+
+
 class CalendarState(ContractModel):
     session: Session
     minutes_since_open: Count | None = None
@@ -244,10 +271,12 @@ class RiskContext(ContractModel):
     aggregate_state: AggregateState | None = None
     agent_state: AgentState | None = None
     response_level: ResponseLevel = 0
+    account_state: AccountState | None = None
     calendar: CalendarState | None = None
 
 
 __all__ = [
+    "AccountState",
     "AgentState",
     "AggregateState",
     "CalendarState",

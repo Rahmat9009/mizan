@@ -6,6 +6,24 @@
       "default_severity": "blocking",
       "description": "Equity would fall below the absorbing-barrier floor; no new risk."
     },
+    "ACCOUNT_NOT_ACTIVE": {
+      "category": "ACCOUNT",
+      "check_id": "account_capability",
+      "default_severity": "blocking",
+      "description": "The broker account status is not ACTIVE."
+    },
+    "ACCOUNT_STATE_MISSING": {
+      "category": "ACCOUNT",
+      "check_id": "account_capability",
+      "default_severity": "blocking",
+      "description": "An account capability check is enabled but the context carries no account state, or the broker did not report the field it needs; permission is never assumed."
+    },
+    "ACCOUNT_TRADING_BLOCKED": {
+      "category": "ACCOUNT",
+      "check_id": "account_capability",
+      "default_severity": "blocking",
+      "description": "The broker reports the account as trading-blocked, account-blocked, or suspended by the user."
+    },
     "ADVISORY_CLAMPED": {
       "category": "ADVISORY",
       "check_id": null,
@@ -420,6 +438,12 @@
       "default_severity": "blocking",
       "description": "Projected portfolio gamma would exceed the policy limit."
     },
+    "OPTIONS_LEVEL_INSUFFICIENT": {
+      "category": "ACCOUNT",
+      "check_id": "account_capability",
+      "default_severity": "blocking",
+      "description": "The account's options trading level is below the level this policy requires for the proposed strategy."
+    },
     "OPTIONS_SHORT_GAMMA_LIMIT_EXCEEDED": {
       "category": "OPTIONS",
       "check_id": "options_short_gamma_limit",
@@ -594,6 +618,12 @@
       "default_severity": "blocking",
       "description": "The proposal falls outside the permitted session window."
     },
+    "SHORTING_NOT_PERMITTED": {
+      "category": "ACCOUNT",
+      "check_id": "account_capability",
+      "default_severity": "blocking",
+      "description": "The account may not sell short and the proposal carries a short leg."
+    },
     "SIGNAL_SOURCE_CONCENTRATION_EXCEEDED": {
       "category": "AGGREGATE",
       "check_id": "signal_source_concentration",
@@ -673,5 +703,5 @@
       "description": "The strategy is not supported by this engine."
     }
   },
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

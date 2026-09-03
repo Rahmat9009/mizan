@@ -39,6 +39,8 @@ REASON_CATEGORIES: tuple[str, ...] = (
     "TAIL",
     "FACTOR",
     "CONTROL",
+    # REQ-35: what the BROKER says about the account, as distinct from what is in it.
+    "ACCOUNT",
 )
 SEVERITIES: tuple[str, ...] = ("blocking", "warning", "info")
 

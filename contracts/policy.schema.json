@@ -6,6 +6,38 @@
   "x-mizan-schema-version": "1.0.0",
   "x-mizan-generated-from": "mizan.contracts.policy.Policy",
   "$defs": {
+    "AccountPolicy": {
+      "additionalProperties": false,
+      "description": "What the tenant requires of the BROKER ACCOUNT before any order may be placed (REQ-35).\n\nSeparate from every other section because it constrains the account rather than the order: the same\nproposal is fine on one account and forbidden on another, and that is a fact about permission, not\nabout risk.",
+      "properties": {
+        "require_active": {
+          "default": true,
+          "title": "Require Active",
+          "type": "boolean"
+        },
+        "min_options_trading_level": {
+          "anyOf": [
+            {
+              "maximum": 3,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Options Trading Level"
+        },
+        "require_shorting_enabled_for_short_legs": {
+          "default": true,
+          "title": "Require Shorting Enabled For Short Legs",
+          "type": "boolean"
+        }
+      },
+      "title": "AccountPolicy",
+      "type": "object"
+    },
     "AdvisoryConfig": {
       "additionalProperties": false,
       "properties": {
@@ -1060,6 +1092,17 @@
       "anyOf": [
         {
           "$ref": "#/$defs/ResponseLadder"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "account": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AccountPolicy"
         },
         {
           "type": "null"

@@ -6,6 +6,111 @@
   "x-mizan-schema-version": "1.0.0",
   "x-mizan-generated-from": "mizan.contracts.risk_context.RiskContext",
   "$defs": {
+    "AccountState": {
+      "additionalProperties": false,
+      "description": "What the BROKER says about the account itself, as opposed to what is in it (REQ-35).\n\nPortfolioSnapshot answers \"what do I hold and what can I afford\". This answers \"is this account\npermitted to do the thing at all\" - a separate question with a separate failure mode, and one the\nengine could not previously ask because there was nowhere to put the answer.\n\nEvery field is optional because a broker may not report it, and E2 applies: a check that needs a\nfield the account did not supply BLOCKS on ACCOUNT_STATE_MISSING rather than assuming permission.",
+      "properties": {
+        "as_of": {
+          "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "trading_blocked": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trading Blocked"
+        },
+        "account_blocked": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Account Blocked"
+        },
+        "trade_suspended_by_user": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trade Suspended By User"
+        },
+        "shorting_enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shorting Enabled"
+        },
+        "options_trading_level": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Options Trading Level"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        }
+      },
+      "required": [
+        "as_of"
+      ],
+      "title": "AccountState",
+      "type": "object"
+    },
     "AgentState": {
       "additionalProperties": false,
       "properties": {
@@ -1234,6 +1339,17 @@
       "minimum": 0,
       "title": "Response Level",
       "type": "integer"
+    },
+    "account_state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AccountState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "calendar": {
       "anyOf": [

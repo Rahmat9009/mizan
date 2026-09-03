@@ -28,6 +28,7 @@ from urllib.parse import urlsplit
 from mizan.adapters.base import PAPER_HOST, BrokerOrder, OrderRequest
 from mizan.contracts import (
     DECIMAL_CONTEXT,
+    AccountState,
     Environment,
     MarketSnapshot,
     OptionQuote,
@@ -101,6 +102,53 @@ def _assert_paper_client(client: Any) -> None:
 
 #: Alpaca stamps every paper account number with this prefix. A live account never carries it.
 PAPER_ACCOUNT_PREFIX = "PA"
+
+
+def _bool_or_none(value: Any) -> bool | None:
+    """A tri-state read: True, False, or "the broker did not say". Never coerce absence to False.
+
+    ``bool(None)`` is False, and False here means "not blocked" - which would turn a missing field into
+    a grant of permission. That is the exact shape of an ESC-4 defect, so absence stays absent and the
+    check blocks on ACCOUNT_STATE_MISSING.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().casefold()
+    if text in {"true", "1", "yes"}:
+        return True
+    if text in {"false", "0", "no"}:
+        return False
+    return None
+
+
+def _int_or_none(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _account_state_of(account: Any, *, as_of: datetime) -> AccountState:
+    """The account's PERMISSIONS, mapped into the contract (REQ-35).
+
+    Deliberately carries no account number: that identifier is sensitive, `redact` strips the key, and a
+    record carrying one would be unbuildable. The paper proof reads it live instead and never persists it.
+    """
+    status = getattr(account, "status", None)
+    return AccountState(
+        as_of=format_ts(as_of),
+        status=None if status is None else str(getattr(status, "value", status)),
+        trading_blocked=_bool_or_none(getattr(account, "trading_blocked", None)),
+        account_blocked=_bool_or_none(getattr(account, "account_blocked", None)),
+        trade_suspended_by_user=_bool_or_none(getattr(account, "trade_suspended_by_user", None)),
+        shorting_enabled=_bool_or_none(getattr(account, "shorting_enabled", None)),
+        options_trading_level=_int_or_none(getattr(account, "options_trading_level", None)),
+        source="alpaca:paper:account",
+    )
 
 
 def _assert_paper_account(account: Any) -> None:
@@ -229,6 +277,12 @@ class AlpacaPaperBroker:
         )
 
     # -- reads --------------------------------------------------------------------------------
+    def get_account_state(self, *, as_of: datetime) -> AccountState:
+        """The account's permissions. Both paper signals are proven on the way past."""
+        account = _call(self._client.get_account)
+        _assert_paper_account(account)
+        return _account_state_of(account, as_of=as_of)
+
     def get_portfolio_snapshot(self, *, as_of: datetime) -> PortfolioSnapshot:
         """Account and positions, mapped into the contract. Absent numbers stay absent (E2)."""
         account = _call(self._client.get_account)

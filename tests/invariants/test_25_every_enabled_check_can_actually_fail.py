@@ -104,6 +104,23 @@ def _exemplars():
                 ],
             ),
         ),
+        # REQ-35: the failing condition is the ACCOUNT's state, not the order's.
+        "account_capability": (
+            proposal,
+            path_and_aggregate_policy(),
+            context_for(
+                path_and_aggregate_policy(),
+                account_state={
+                    "as_of": format_ts(FIXED_NOW),
+                    "status": "ACTIVE",
+                    "trading_blocked": True,
+                    "account_blocked": False,
+                    "trade_suspended_by_user": False,
+                    "shorting_enabled": True,
+                    "options_trading_level": 2,
+                },
+            ),
+        ),
         "days_to_expiry": (
             rebuild_proposal(
                 option,

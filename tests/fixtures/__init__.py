@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from mizan.contracts import (
+    AccountState,
     ALWAYS_ON_CHECKS,
     CHECK_IDS,
     ENGINE_VERSION,
@@ -501,6 +502,21 @@ def make_agent_state(**overrides: Any) -> AgentState:
     return AgentState.model_validate(_merge(base, overrides))
 
 
+def make_account_state(**overrides: Any) -> AccountState:
+    """A healthy, fully-reported paper account: active, unblocked, options level 2, shorting on."""
+    base: dict[str, Any] = {
+        "as_of": FIXED_NOW_STR,
+        "status": "ACTIVE",
+        "trading_blocked": False,
+        "account_blocked": False,
+        "trade_suspended_by_user": False,
+        "shorting_enabled": True,
+        "options_trading_level": 2,
+        "source": "alpaca:paper:account",
+    }
+    return AccountState.model_validate(_merge(base, overrides))
+
+
 def make_calendar(**overrides: Any) -> CalendarState:
     base = {
         "session": "open",
@@ -526,6 +542,10 @@ def make_context(**overrides: Any) -> RiskContext:
         "market_snapshot": make_market_snapshot(),
         "portfolio_snapshot": make_portfolio_snapshot(),
         "recent_orders": [],
+        # REQ-35: a HEALTHY account by default - active, unblocked, options level 2, shorting on.
+        # The default fixture represents a working deployment; a test that wants a blocked or
+        # under-privileged account overrides this, exactly as it overrides the portfolio or calendar.
+        "account_state": make_account_state(),
         "engine_version": ENGINE_VERSION,
     }
     return RiskContext.model_validate(_merge(base, overrides))
@@ -941,6 +961,7 @@ __all__ = [
     "make_authorization",
     "make_authorized_leg",
     "make_bound_state",
+    "make_account_state",
     "make_calendar",
     "make_check_result",
     "make_checks",

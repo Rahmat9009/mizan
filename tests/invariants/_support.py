@@ -480,6 +480,13 @@ def path_and_aggregate_policy(**overrides: Any) -> Policy:
     payload = make_policy().model_dump(mode="json")
     payload["path"] = institutional["path"]
     payload["aggregate"] = institutional["aggregate"]
+    # REQ-35: enabling the account section makes account_capability an enabled BLOCKING check, so
+    # INV-25 and INV-26 govern it from the moment it exists rather than whenever someone remembers.
+    payload["account"] = {
+        "require_active": True,
+        "min_options_trading_level": 2,
+        "require_shorting_enabled_for_short_legs": True,
+    }
     payload.pop("policy_hash", None)
     payload.update(overrides)
     return Policy.build(**payload)

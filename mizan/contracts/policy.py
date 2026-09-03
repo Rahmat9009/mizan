@@ -79,6 +79,9 @@ CHECK_IDS: tuple[str, ...] = (
     "absorbing_barrier",
     "factor_exposure",
     "book_liquidation_time",
+    # REQ-35. APPENDED, never inserted: CHECK_INDEX is positional and BASE_CHECK_IDS slices the first
+    # 19, so putting this anywhere else would silently renumber every existing check.
+    "account_capability",
 )
 BASE_CHECK_IDS: tuple[str, ...] = CHECK_IDS[:19]
 ALWAYS_ON_CHECKS: tuple[str, ...] = (
@@ -91,6 +94,7 @@ CHECK_INDEX: dict[str, int] = {check_id: index for index, check_id in enumerate(
 
 # The optional policy section each check reads. ``None`` = always available (no section, or a required section).
 CHECK_SECTIONS: dict[str, str | None] = {
+    "account_capability": "account",
     "market_data_presence": None,
     "portfolio_state_presence": None,
     "proposal_expiry": None,
@@ -182,6 +186,19 @@ class OptionsLimits(ContractModel):
         if self.max_days_to_expiry <= self.min_days_to_expiry:
             raise ValueError("max_days_to_expiry must be greater than min_days_to_expiry")
         return self
+
+
+class AccountPolicy(ContractModel):
+    """What the tenant requires of the BROKER ACCOUNT before any order may be placed (REQ-35).
+
+    Separate from every other section because it constrains the account rather than the order: the same
+    proposal is fine on one account and forbidden on another, and that is a fact about permission, not
+    about risk.
+    """
+
+    require_active: bool = True
+    min_options_trading_level: int | None = Field(default=None, ge=0, le=3)
+    require_shorting_enabled_for_short_legs: bool = True
 
 
 class Restricted(ContractModel):
@@ -365,6 +382,7 @@ class Policy(ContractModel):
     aggregate: AggregatePolicy | None = None
     agent_budgets: dict[AgentId, AgentBudget] = Field(default_factory=dict)
     response_ladder: ResponseLadder | None = None
+    account: AccountPolicy | None = None
     liquidity: LiquidityPolicy | None = None
     time: TimePolicy | None = None
     tail: TailPolicy | None = None

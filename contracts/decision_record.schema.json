@@ -6,6 +6,143 @@
   "x-mizan-schema-version": "1.0.0",
   "x-mizan-generated-from": "mizan.contracts.decision_record.DecisionRecord",
   "$defs": {
+    "AccountPolicy": {
+      "additionalProperties": false,
+      "description": "What the tenant requires of the BROKER ACCOUNT before any order may be placed (REQ-35).\n\nSeparate from every other section because it constrains the account rather than the order: the same\nproposal is fine on one account and forbidden on another, and that is a fact about permission, not\nabout risk.",
+      "properties": {
+        "require_active": {
+          "default": true,
+          "title": "Require Active",
+          "type": "boolean"
+        },
+        "min_options_trading_level": {
+          "anyOf": [
+            {
+              "maximum": 3,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Options Trading Level"
+        },
+        "require_shorting_enabled_for_short_legs": {
+          "default": true,
+          "title": "Require Shorting Enabled For Short Legs",
+          "type": "boolean"
+        }
+      },
+      "title": "AccountPolicy",
+      "type": "object"
+    },
+    "AccountState": {
+      "additionalProperties": false,
+      "description": "What the BROKER says about the account itself, as opposed to what is in it (REQ-35).\n\nPortfolioSnapshot answers \"what do I hold and what can I afford\". This answers \"is this account\npermitted to do the thing at all\" - a separate question with a separate failure mode, and one the\nengine could not previously ask because there was nowhere to put the answer.\n\nEvery field is optional because a broker may not report it, and E2 applies: a check that needs a\nfield the account did not supply BLOCKS on ACCOUNT_STATE_MISSING rather than assuming permission.",
+      "properties": {
+        "as_of": {
+          "pattern": "^(\\d{4})-(\\d{2})-(\\d{2})[Tt](\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9}))?([Zz]|[+-]\\d{2}:\\d{2})$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "trading_blocked": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trading Blocked"
+        },
+        "account_blocked": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Account Blocked"
+        },
+        "trade_suspended_by_user": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trade Suspended By User"
+        },
+        "shorting_enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shorting Enabled"
+        },
+        "options_trading_level": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Options Trading Level"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        }
+      },
+      "required": [
+        "as_of"
+      ],
+      "title": "AccountState",
+      "type": "object"
+    },
     "AdvisoryConfig": {
       "additionalProperties": false,
       "properties": {
@@ -2502,6 +2639,17 @@
           ],
           "default": null
         },
+        "account": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AccountPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "liquidity": {
           "anyOf": [
             {
@@ -3123,6 +3271,9 @@
       "description": "Machine-readable reason codes from contracts/reason_codes.json (version REASON_CODE_VERSION).",
       "enum": [
         "ABSORBING_BARRIER_BREACHED",
+        "ACCOUNT_NOT_ACTIVE",
+        "ACCOUNT_STATE_MISSING",
+        "ACCOUNT_TRADING_BLOCKED",
         "ADVISORY_CLAMPED",
         "ADVISORY_INVALID_OUTPUT",
         "ADVISORY_REDUCE",
@@ -3192,6 +3343,7 @@
         "NAKED_SHORT_NOT_PERMITTED",
         "OPTIONS_DELTA_LIMIT_EXCEEDED",
         "OPTIONS_GAMMA_LIMIT_EXCEEDED",
+        "OPTIONS_LEVEL_INSUFFICIENT",
         "OPTIONS_SHORT_GAMMA_LIMIT_EXCEEDED",
         "OPTIONS_SHORT_VEGA_LIMIT_EXCEEDED",
         "OPTIONS_VEGA_LIMIT_EXCEEDED",
@@ -3221,6 +3373,7 @@
         "SECTOR_CONCENTRATION_EXCEEDED",
         "SECTOR_DATA_MISSING",
         "SESSION_WINDOW_RESTRICTED",
+        "SHORTING_NOT_PERMITTED",
         "SIGNAL_SOURCE_CONCENTRATION_EXCEEDED",
         "SIZE_REDUCED_TO_POLICY_CAP",
         "SIZE_SCALED_BY_DRAWDOWN",
@@ -3626,6 +3779,17 @@
           "minimum": 0,
           "title": "Response Level",
           "type": "integer"
+        },
+        "account_state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AccountState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "calendar": {
           "anyOf": [

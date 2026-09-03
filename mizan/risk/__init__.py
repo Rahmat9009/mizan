@@ -73,6 +73,8 @@ IMPLEMENTED_CHECKS: frozenset[str] = frozenset(
         "session_window",
         "options_short_gamma_limit",
         "options_short_vega_limit",
+        # REQ-35
+        "account_capability",
     }
 )
 
