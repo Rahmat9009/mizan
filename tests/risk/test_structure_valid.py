@@ -123,11 +123,13 @@ def test_a_long_at_a_DIFFERENT_EXPIRY_does_not_cover_a_short():
     [
         ("bull_call_spread", "buy", "sell"),
         ("bear_call_spread", "sell", "buy"),
-        ("bull_put_spread", "sell", "buy"),
-        ("bear_put_spread", "buy", "sell"),
+        ("bull_put_spread", "buy", "sell"),
+        ("bear_put_spread", "sell", "buy"),
     ],
 )
 def test_each_named_vertical_accepts_its_own_shape(strategy, lower, upper):
+    """A bull put spread is a CREDIT spread - short the higher strike, long the lower. Getting this
+    backwards would refuse every legitimate put credit spread and accept its opposite."""
     leg = _call if "call" in strategy else _put
     _, check = _structure(_option(strategy, [leg(lower, "230"), leg(upper, "235")]))
     assert check.passed is True, f"{strategy} must accept {lower} lower / {upper} upper"
@@ -138,8 +140,8 @@ def test_each_named_vertical_accepts_its_own_shape(strategy, lower, upper):
     [
         ("bull_call_spread", "sell", "buy"),
         ("bear_call_spread", "buy", "sell"),
-        ("bull_put_spread", "buy", "sell"),
-        ("bear_put_spread", "sell", "buy"),
+        ("bull_put_spread", "sell", "buy"),
+        ("bear_put_spread", "buy", "sell"),
     ],
 )
 def test_each_named_vertical_rejects_its_inverse(strategy, lower, upper):

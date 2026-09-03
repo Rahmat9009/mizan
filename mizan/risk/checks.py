@@ -2020,8 +2020,12 @@ def account_capability(
 VERTICAL_SHAPES: dict[str, tuple[str, str, str]] = {
     "bull_call_spread": ("call", "buy", "sell"),
     "bear_call_spread": ("call", "sell", "buy"),
-    "bull_put_spread": ("put", "sell", "buy"),
-    "bear_put_spread": ("put", "buy", "sell"),
+    # A bull put spread is a CREDIT spread: sell the higher-strike put, buy the lower one for
+    # protection. So the LOWER strike is the long leg. A bear put spread is its mirror - buy the
+    # higher strike, sell the lower. These two were inverted when first written, which would have
+    # refused every legitimate put credit spread and accepted its opposite.
+    "bull_put_spread": ("put", "buy", "sell"),
+    "bear_put_spread": ("put", "sell", "buy"),
 }
 
 
