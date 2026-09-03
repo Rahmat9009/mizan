@@ -140,7 +140,23 @@ def opinion(
     invoked: bool = True,
     reasoning: str = "",
 ) -> AdvisoryOpinion:
-    """An AdvisoryOpinion built through the contract (so only CONCUR/REDUCE/REJECT can exist)."""
+    """An AdvisoryOpinion built through the contract (so only CONCUR/REDUCE/REJECT can exist).
+
+    PERMANENT GUARD (ledger/escalations.md, ESC-1). A REDUCE to zero is not a REDUCE - it is a REJECT,
+    and the contract refuses that combination outright. ESC-1 happened because a hypothesis strategy
+    generated ``advised=0``, handed it here, and the refusal surfaced as a bare ValidationError deep
+    inside an unrelated assertion, where it read like a product defect rather than a generator bound.
+    The bound was corrected in one test; this guard is the general fix, and it lives here because this
+    is the single construction point every invariant uses. Any future caller - a new strategy, a new
+    test, a widened bound - now fails HERE, naming the rule, instead of somewhere confusing.
+    """
+    if recommendation == "REDUCE" and (quantity is None or dec(quantity) <= 0):
+        raise AssertionError(
+            f"opinion('REDUCE', {quantity!r}) is not constructible: a REDUCE to a non-positive quantity "
+            "is semantically a REJECT, and AdvisoryOpinion refuses it. Use opinion('REJECT') for that "
+            "case, or generate advised quantities from 1 upward. See ledger/escalations.md ESC-1 - this "
+            "guard exists so a generator-bound bug is reported as one."
+        )
     return AdvisoryOpinion(
         profile="invariant-test",
         invoked=invoked,
@@ -448,3 +464,63 @@ def as_decimal(value: str | None) -> Decimal:
     if value is None:
         raise AssertionError("expected a DecimalStr, got None")
     return dec(value)
+# ---- appended to tests/invariants/_support.py ----
+
+def path_and_aggregate_policy(**overrides: Any) -> Policy:
+    """The default policy plus the path and aggregate sections, so invariants 19-22 vary ONE thing.
+
+    ``make_policy`` has neither section and ``make_institutional_policy`` has both but also demands an
+    invalidation level the default proposal does not carry - so it rejects for reasons unrelated to path
+    or aggregate state. This composes the two: a policy the default proposal passes cleanly, which also
+    has a drawdown ladder and a book limit to exercise.
+    """
+    from tests.fixtures import make_institutional_policy, make_policy
+
+    institutional = make_institutional_policy().model_dump(mode="json")
+    payload = make_policy().model_dump(mode="json")
+    payload["path"] = institutional["path"]
+    payload["aggregate"] = institutional["aggregate"]
+    payload.pop("policy_hash", None)
+    payload.update(overrides)
+    return Policy.build(**payload)
+
+
+def empty_book(**overrides: Any):
+    """An aggregate state holding nothing, so the aggregate layer has no reason to object."""
+    from tests.fixtures import make_aggregate_state
+
+    base = dict(
+        gross_exposure="0",
+        net_exposure="0",
+        exposure_pct_of_equity="0",
+        exposure_by_agent={},
+        exposure_by_model_provider={},
+        exposure_by_signal_source={},
+        exposure_by_sector={},
+        pending_intents=[],
+        crowding_score="0",
+    )
+    base.update(overrides)
+    return make_aggregate_state(**base)
+
+
+def full_book(equity: Any, limit: Any, **overrides: Any):
+    """An aggregate state sitting exactly at the policy's book limit."""
+    from tests.fixtures import make_aggregate_state
+
+    at_limit = dstr(dec(equity) * dec(limit))
+    base = dict(gross_exposure=at_limit, net_exposure=at_limit, exposure_pct_of_equity=dstr(dec(limit)))
+    base.update(overrides)
+    return make_aggregate_state(**base)
+
+
+def unstressed_context(policy: Policy, **overrides: Any) -> RiskContext:
+    """A context with path and aggregate state present but benign - the baseline for 19-22."""
+    from tests.fixtures import make_path_state
+
+    fields: dict[str, Any] = dict(
+        path_state=make_path_state(current_drawdown_pct="0", consecutive_losses=0, days_under_water=0),
+        aggregate_state=empty_book(),
+    )
+    fields.update(overrides)
+    return context_for(policy, **fields)

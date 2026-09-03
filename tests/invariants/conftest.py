@@ -38,6 +38,11 @@ INVARIANTS: tuple[tuple[int, str, str], ...] = (
     (16, "no_live_trading_path_exists", "B1"),
     (17, "reasoning_field_never_reaches_enforcement", "E1/§0"),
     (18, "semantic_layer_disabled_produces_identical_verdict", "Addendum-1 §D"),
+    (19, "aggregate_check_can_override_per_agent_pass", "Addendum-2/R-AGG"),
+    (20, "size_scales_down_as_drawdown_deepens", "Addendum-2/R-ERG-2"),
+    (21, "authorization_bound_to_state_hash", "Addendum-2/E6"),
+    (22, "authorization_invalid_after_state_change", "Addendum-2/E6"),
+    (23, "no_llm_in_deterministic_path", "Addendum-2/E8"),
 )
 
 _FILE_RE = re.compile(r"test_(\d{2})_[a-z_]+\.py")

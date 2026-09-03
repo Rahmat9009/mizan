@@ -221,3 +221,32 @@ def test_authorized_quantity_never_exceeds_deterministic_cap_for_any_advised_qua
     if Decimal(advised) > cap:
         assert quantity_of(decision.authorized) == cap
         assert "ADVISORY_CLAMPED" in codes(decision)
+
+
+@pytest.mark.parametrize("bad_quantity", [None, "0", "-1"])
+def test_the_esc1_guard_refuses_a_reduce_to_a_non_positive_quantity(bad_quantity):
+    """ESC-1's permanent guard: the shared ``opinion`` builder refuses REDUCE-to-nothing, and says why.
+
+    ESC-1 was a hypothesis strategy generating ``advised=0``; the contract's refusal then surfaced as a
+    bare ValidationError inside an unrelated assertion and read like a product defect. The bound was
+    fixed in this file; the guard in ``_support.opinion`` is the general fix. This test exists so the
+    guard cannot be deleted or rot silently - without it, the next widened bound reopens ESC-1.
+    """
+    with pytest.raises(AssertionError, match="not constructible"):
+        opinion("REDUCE", bad_quantity)
+
+
+def test_the_contract_itself_still_refuses_reduce_to_zero():
+    """The guard is a readability device, not the enforcement. The contract remains the authority."""
+    with pytest.raises(ValidationError):
+        AdvisoryOpinion(
+            profile="invariant-test",
+            invoked=True,
+            available=True,
+            recommendation="REDUCE",
+            recommended_quantity="0",
+            reasoning="",
+            authority_ceiling="reduce_or_reject",
+            provider_ref=None,
+            raw_hash=None,
+        )
