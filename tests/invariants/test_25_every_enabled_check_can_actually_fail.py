@@ -45,11 +45,18 @@ from tests.invariants._support import (
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-#: The one check structurally incapable of failing in any shipped pipeline, with the reason.
-#: ``RiskContext.recent_orders`` is a parameter of BrokerContextProvider.build defaulting to () that no
-#: caller anywhere in mizan/ populates, so duplicate_order's loop body is unreachable in production.
-#: Recorded as ESC-4. The emptiness of this mapping is asserted by an xfail(strict=True) below, so
-#: closing ESC-4 turns that test XPASS and forces this entry's removal.
+#: Checks that are enabled and blocking but structurally incapable of failing in a shipped pipeline.
+#: EMPTY, and it must stay empty.
+#:
+#: ESC-4 put ``duplicate_order`` here: ``RiskContext.recent_orders`` was a parameter of
+#: ``BrokerContextProvider.build`` defaulting to ``()`` that no caller in ``mizan/`` populated, so the
+#: check's loop body was unreachable and it reported ``passed=True`` at blocking severity on every
+#: proposal. ESC-4 is now CLOSED - the provider derives recent orders from the tenant's own chain, and
+#: the exemplar below observes the check failing on a real duplicate.
+#:
+#: Adding anything here is a HALT, not a workaround: ``test_no_check_is_known_dead`` asserts this is
+#: empty, and ``test_the_wiring_that_closed_esc4_is_still_in_place`` pins the derivation itself, so
+#: deleting that wiring reopens ESC-4 loudly rather than silently.
 KNOWN_DEAD: dict[str, str] = {}
 
 
