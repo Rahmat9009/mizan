@@ -42,4 +42,4 @@ audit*.json
 .DS_Store
 Thumbs.db
 .mizan-orchestrator.lock
-evidence/
+/evidence/
