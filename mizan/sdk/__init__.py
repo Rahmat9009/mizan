@@ -100,6 +100,25 @@ def _registry_for(ledger: Ledger) -> _authorization.AuthorizationRegistry:
         return registry
 
 
+
+def _refuse_double_submit(config: ExecutionConfig) -> None:
+    """@protected + a submitting gate means two orders for one decision. Refuse before either.
+
+    In @protected the CALLER's function is what places the order; the gate runs every check and stops
+    one step short of the mutation. A config that makes the gate submit as well does not degrade the
+    arrangement, it doubles it - so the combination is refused rather than documented, and refused
+    before anything reaches a broker.
+    """
+    if not config.dry_run:
+        raise ConfigurationError(
+            message="@protected requires a dry-run execution config; nothing was submitted.",
+            detail=(
+                "ExecutionConfig(dry_run=False) with @protected would double-submit: the gate places "
+                "the order and then the wrapped function places it again"
+            ),
+        )
+
+
 class Mizan:
     """One tenant's governed pipeline, assembled from the lane components."""
 
@@ -244,8 +263,18 @@ class Mizan:
         if fn is None:
             return functools.partial(self.protected, on_decision=on_decision)
 
+        # Decidable HERE, from configuration alone, with no proposal and no broker involved. It used
+        # to be decided after `self.execute(...)` had already placed a real order - so the caller got
+        # a ConfigurationError describing a combination that "would double-submit" while the first of
+        # the two orders was live at the venue (F-33). A caller that reads ConfigurationError as
+        # "nothing happened", which is the only sane reading, was wrong.
+        _refuse_double_submit(self.config)
+
         @functools.wraps(fn)
         def guarded(proposal: TradeProposal, *args: Any, **kwargs: Any) -> Any:
+            # Again at call time: `config` is an attribute and can be reassigned after decoration,
+            # and the check that only runs when nothing has changed is the one that misses.
+            _refuse_double_submit(self.config)
             record = self.evaluate(proposal)
             if on_decision is not None:
                 on_decision(record)
@@ -257,8 +286,9 @@ class Mizan:
                 )
             result = self.execute(record.decision_id)
             if result.status == "SUBMITTED":
-                # The gate already placed this order through Mizan's broker. Running the caller's
-                # submit function too would send a second, unauthorized order for the same decision.
+                # Unreachable while the guard above holds, and kept anyway: if a future path ever
+                # reaches a real submission here, the caller's function must still not run and send
+                # a second order. A backstop that costs nothing is worth its lines.
                 raise ConfigurationError(
                     message="@protected requires a dry-run execution config; the gate already submitted.",
                     detail="ExecutionConfig(dry_run=False) with @protected would double-submit",

@@ -683,39 +683,42 @@ def test_f28_the_broker_idempotency_read_is_the_only_remaining_defence() -> None
 # ---------------------------------------------------------------------------------------------
 # FINDING F-33 - @protected refuses a double-submit configuration only after submitting
 # ---------------------------------------------------------------------------------------------
-@pytest.mark.xfail(
-    strict=False,
-    reason="F-33 OPEN (MEDIUM, L3): @protected with ExecutionConfig(dry_run=False) places a real "
-    "broker order and only then raises ConfigurationError. The condition is decidable at "
-    "decoration time. Remove this marker when F-33 is fixed.",
-)
 def test_f33_protected_must_refuse_a_double_submit_config_before_it_submits() -> None:
+    """The refusal happens at DECORATION, so no proposal and no broker are ever involved.
+
+    It used to happen after the gate had placed a real order, and the error said the combination
+    "would double-submit" while the first of the two was already live. A caller reading
+    ConfigurationError as "nothing happened" - the only sane reading - was wrong.
+    """
     broker = MockBroker(
         portfolio_snapshot=make_portfolio_snapshot(), market_snapshot=make_market_snapshot()
     )
     pipeline = a_pipeline(broker=broker, config=ExecutionConfig(enabled=True, dry_run=False))
     called: list[Any] = []
 
-    @pipeline.protected
-    def submit(proposal: Any) -> str:
-        called.append(proposal)
-        return "caller submitted"
+    with pytest.raises(ConfigurationError, match="dry-run"):
 
-    with pytest.raises(ConfigurationError):
-        submit(make_proposal())
+        @pipeline.protected
+        def submit(proposal: Any) -> str:  # pragma: no cover - decoration raises first
+            called.append(proposal)
+            return "caller submitted"
+
     assert called == [], "the caller's function must not run"
     assert broker.submitted == [], (
-        "the gate submitted a real order and then reported a configuration error; a caller that "
-        "treats ConfigurationError as 'nothing happened' is wrong"
+        "nothing may reach the broker: this is decidable from configuration alone, with no "
+        "proposal in hand"
     )
 
 
-def test_f33_the_caller_function_is_at_least_never_reached_on_the_double_submit_path() -> None:
-    """The half of F-33 that holds today: exactly one order, and the wrapped function never runs."""
+def test_f33_a_config_swapped_after_decoration_is_still_refused() -> None:
+    """Decorating early is not a licence to stop checking: `config` is a mutable attribute.
+
+    A guard that only runs when nothing has changed is the one that misses.
+    """
     broker = MockBroker(
         portfolio_snapshot=make_portfolio_snapshot(), market_snapshot=make_market_snapshot()
     )
-    pipeline = a_pipeline(broker=broker, config=ExecutionConfig(enabled=True, dry_run=False))
+    pipeline = a_pipeline(broker=broker, config=ExecutionConfig(enabled=True, dry_run=True))
     called: list[Any] = []
 
     @pipeline.protected
@@ -723,10 +726,34 @@ def test_f33_the_caller_function_is_at_least_never_reached_on_the_double_submit_
         called.append(proposal)
         return "caller submitted"
 
-    with pytest.raises(ConfigurationError):
+    pipeline.config = ExecutionConfig(enabled=True, dry_run=False)
+    with pytest.raises(ConfigurationError, match="dry-run"):
         submit(make_proposal())
+
     assert called == []
-    assert len(broker.submitted) == 1
+    assert broker.submitted == []
+
+
+def test_f33_the_dry_run_config_protected_is_built_for_still_works() -> None:
+    """The control: refusing the wrong config must not have broken the right one.
+
+    Under dry_run the gate runs every check and stops one step short of the mutation, and the
+    CALLER's function places the order. That is the whole arrangement @protected exists for.
+    """
+    broker = MockBroker(
+        portfolio_snapshot=make_portfolio_snapshot(), market_snapshot=make_market_snapshot()
+    )
+    pipeline = a_pipeline(broker=broker, config=ExecutionConfig(enabled=True, dry_run=True))
+    called: list[Any] = []
+
+    @pipeline.protected
+    def submit(proposal: Any) -> str:
+        called.append(proposal)
+        return "caller submitted"
+
+    assert submit(make_proposal()) == "caller submitted"
+    assert len(called) == 1
+    assert broker.submitted == [], "under dry_run the gate must not submit; the caller does"
 
 
 def test_no_live_trading_configuration_is_representable(monkeypatch: Any) -> None:

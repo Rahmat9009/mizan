@@ -235,7 +235,7 @@ def test_protected_runs_the_wrapped_function_only_behind_an_executable_result():
 
 
 def test_protected_never_runs_the_wrapped_function_for_a_rejected_proposal():
-    mizan = a_mizan()
+    mizan = a_mizan(config=ExecutionConfig(enabled=True, dry_run=True))  # @protected requires dry_run
     ran: list[str] = []
 
     @mizan.protected
@@ -278,7 +278,7 @@ def test_protected_never_runs_the_wrapped_function_when_the_kill_switch_is_activ
 
 
 def test_protected_keeps_the_wrapped_functions_name_and_docstring():
-    mizan = a_mizan()
+    mizan = a_mizan(config=ExecutionConfig(enabled=True, dry_run=True))  # @protected requires dry_run
 
     @mizan.protected
     def submit_trade(proposal):

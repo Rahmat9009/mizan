@@ -78,32 +78,29 @@ def test_protected_hands_the_caller_the_authorized_proposal_not_the_proposed_one
     assert authorized_proposal(decisions[0]).proposal_id == handed.proposal_id
 
 
-def test_protected_stops_the_second_submission_but_only_after_the_first_one_happened(tmp_path):
-    """dry_run=False plus a caller that submits is two orders for one authorization. Only one is stopped.
+def test_protected_refuses_the_double_submit_config_before_any_order_exists(tmp_path):
+    """dry_run=False plus a caller that submits is two orders for one authorization. Now zero go out.
 
-    The caller's function never runs, so the SECOND order is genuinely prevented and the reduction is
-    not the thing at risk. But the refusal comes after ``Mizan.execute`` has already returned
-    ``SUBMITTED``, so by the time the ``ConfigurationError`` is raised a real order is at the venue -
-    and the developer, who sees only an exception, has no reason to think so. The condition is
-    decidable at decoration time. This is L5's F-33 and this test corroborates it rather than
-    asserting the friendlier claim its name would otherwise make.
+    This test used to assert the opposite, and said so: the refusal came only after ``Mizan.execute``
+    had returned ``SUBMITTED``, so by the time the ``ConfigurationError`` reached the developer a real
+    order was at the venue and nothing in the exception suggested it. That was F-33, and this test
+    corroborated it rather than making the friendlier claim its name implied.
+
+    The condition needs no proposal and no broker, so it is now settled at decoration and the count
+    below is zero rather than one.
     """
     world = build_world(ledger_dir=tmp_path, dry_run=False)
     calls: list[object] = []
 
-    @world.mizan.protected
-    def submit_trade(order):
-        calls.append(order)
+    with pytest.raises(ConfigurationError, match="dry-run"):
 
-    with pytest.raises(ConfigurationError):
-        submit_trade(proposal("30"))
+        @world.mizan.protected
+        def submit_trade(order):  # pragma: no cover - decoration raises first
+            calls.append(order)
 
-    assert calls == [], "the caller's submit must never run after the gate already submitted"
-    assert len(world.broker.submitted) == 1, (
-        "F-33 may be fixed - @protected now refuses before executing; update this test"
-    )
-    assert [leg.quantity for leg in world.broker.submitted[0].legs] == ["20"], (
-        "the order that did go out was at least the authorized size"
+    assert calls == []
+    assert world.broker.submitted == [], (
+        "nothing may reach the venue for a configuration that was invalid before it was used"
     )
 
 

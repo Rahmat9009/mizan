@@ -162,20 +162,24 @@ def test_execution_disabled_stops_the_function(build_pipeline, proposal):
 def test_protected_refuses_a_configuration_that_would_double_submit(build_pipeline, proposal):
     """``dry_run=False`` means the gate submits through Mizan's broker.
 
-    Calling the caller's submit function as well would place a second, unauthorized order for the same
-    decision. The combination is refused rather than documented away.
+    Calling the caller's submit function as well would place a second, unauthorized order for the
+    same decision. The combination is refused rather than documented away - and refused at DECORATION,
+    before a proposal exists, because it is decidable from configuration alone. It used to be refused
+    after the gate had already placed the first of the two orders (F-33).
     """
     pipeline = build_pipeline(config=ExecutionConfig(enabled=True, dry_run=False))
     ran = []
 
-    @pipeline.protected
-    def submit_trade(order):
-        ran.append(order)
-
     with pytest.raises(MizanError) as refused:
-        submit_trade(proposal)
+
+        @pipeline.protected
+        def submit_trade(order):  # pragma: no cover - decoration raises first
+            ran.append(order)
 
     assert ran == []
+    assert pipeline.broker.submitted == [], (
+        "the refusal is decidable from configuration alone, so nothing reaches the broker"
+    )
     assert refused.value.http_status == 500
     assert "double" in refused.value.message.lower() or "dry" in refused.value.message.lower()
 
