@@ -1,0 +1,1074 @@
+/* =============================================================================
+   Domain components
+   ========================================================================== */
+
+/* ------------------------------------------------------------- pipeline --- */
+.pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.pipeline__rail {
+  display: flex;
+  align-items: stretch;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.pipeline__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.pipeline__stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-2) var(--sp-2);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+button.pipeline__stage:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hairline);
+}
+.pipeline__stage.is-active {
+  background: var(--bg-selected);
+  border-color: var(--accent-border);
+}
+
+.pipeline__marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--neutral-border);
+  background: var(--bg-inset);
+  flex-shrink: 0;
+}
+
+.pipeline__marker-shape {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--neutral-solid);
+}
+
+/* Each state gets its own shape as well as its own colour. */
+.pipeline__stage.is-ok .pipeline__marker {
+  border-color: var(--ok-border);
+}
+.pipeline__stage.is-ok .pipeline__marker-shape {
+  background: var(--ok-solid);
+}
+
+.pipeline__stage.is-warn .pipeline__marker {
+  border-color: var(--warn-border);
+}
+.pipeline__stage.is-warn .pipeline__marker-shape {
+  background: var(--warn-solid);
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+.pipeline__stage.is-danger .pipeline__marker {
+  border-color: var(--danger-border);
+}
+.pipeline__stage.is-danger .pipeline__marker-shape {
+  background: var(--danger-solid);
+  border-radius: 1px;
+}
+
+.pipeline__stage.is-accent .pipeline__marker {
+  border-color: var(--accent-border);
+}
+.pipeline__stage.is-accent .pipeline__marker-shape {
+  background: var(--accent);
+}
+
+/* The only ambient motion in the operational interface, and only on a stage
+   that is genuinely working. */
+.pipeline__stage.is-state-running .pipeline__marker::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  animation: stage-ping 1.8s var(--ease-out) infinite;
+}
+@keyframes stage-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  70%,
+  100% {
+    transform: scale(1.75);
+    opacity: 0;
+  }
+}
+
+.pipeline__labels {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.pipeline__label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pipeline__state {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pipeline__stage.is-warn .pipeline__state {
+  color: var(--warn-fg);
+}
+.pipeline__stage.is-danger .pipeline__state {
+  color: var(--danger-fg);
+}
+.pipeline__stage.is-ok .pipeline__state {
+  color: var(--ok-fg);
+}
+.pipeline__stage.is-accent .pipeline__state {
+  color: var(--text-accent);
+}
+
+.pipeline__qty {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  padding-left: var(--sp-2);
+}
+
+.pipeline__link {
+  width: var(--sp-3);
+  height: 1px;
+  background: var(--border-subtle);
+  flex-shrink: 0;
+}
+
+/* The governance boundary. The one chromatic flourish in the product, and it
+   always carries a label. */
+.pipeline__item--boundary {
+  padding-left: var(--sp-5);
+}
+.pipeline__boundary {
+  position: absolute;
+  left: var(--sp-2);
+  top: -6px;
+  bottom: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pipeline__boundary-line {
+  width: 1px;
+  height: 100%;
+  background: var(--brass);
+}
+.pipeline__boundary-label {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--brass);
+  white-space: nowrap;
+  background: var(--bg-surface);
+  padding: 0 4px;
+}
+
+.pipeline--rail .pipeline__stage {
+  padding: var(--sp-1);
+  gap: 6px;
+}
+.pipeline--rail .pipeline__marker {
+  width: 13px;
+  height: 13px;
+}
+.pipeline--rail .pipeline__marker-shape {
+  width: 5px;
+  height: 5px;
+}
+.pipeline--rail .pipeline__label {
+  font-size: var(--text-2xs);
+}
+.pipeline--rail .pipeline__state {
+  display: none;
+}
+.pipeline--rail .pipeline__link {
+  width: var(--sp-2);
+}
+.pipeline--rail .pipeline__boundary-label {
+  font-size: 8px;
+  top: -12px;
+}
+
+/* Height is reserved for the fullest stage detail, so moving the selection
+   from one stage to another never shifts the page beneath it. */
+.pipeline__detail {
+  border-top: 1px solid var(--border-hairline);
+  padding-top: var(--sp-3);
+  min-height: 132px;
+}
+.pipeline__detail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-2);
+}
+.pipeline__detail-state {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+.pipeline__detail-state.is-ok {
+  color: var(--ok-fg);
+}
+.pipeline__detail-state.is-warn {
+  color: var(--warn-fg);
+}
+.pipeline__detail-state.is-danger {
+  color: var(--danger-fg);
+}
+.pipeline__detail-state.is-accent {
+  color: var(--text-accent);
+}
+.pipeline__detail-text {
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  max-width: 90ch;
+  line-height: var(--leading-relaxed);
+}
+.pipeline__detail-hint {
+  font-size: var(--text-md);
+  color: var(--text-tertiary);
+}
+.pipeline__detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-6);
+  margin-top: var(--sp-3);
+}
+.pipeline__detail-meta dt {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pipeline__detail-meta dd {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+}
+/* Authority and source are words, not figures; they keep the interface face. */
+.pipeline__detail-meta dd.pipeline__detail-word {
+  font-family: var(--font-ui);
+}
+
+@media (max-width: 1100px) {
+  .pipeline__rail {
+    overflow-x: auto;
+    padding-bottom: var(--sp-2);
+  }
+  .pipeline__item {
+    flex: 0 0 auto;
+    min-width: 132px;
+  }
+}
+
+/* ----------------------------------------------------------- provenance --- */
+.prov {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-hairline);
+  background: var(--bg-inset);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  cursor: help;
+}
+.prov--xs {
+  /* 10px is the system's own smallest documented size (the eyebrow token).
+     The 9px this carried sat below that floor and, in light theme, was the
+     single largest contrast-failure group in the product. */
+  font-size: var(--text-2xs);
+  padding: 0 4px;
+}
+/* Live values read as measured; demo values read as clearly not. */
+.prov--live {
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+.prov--derived {
+  color: var(--text-accent);
+  border-color: var(--accent-border);
+}
+.prov--supplied {
+  color: var(--warn-fg);
+  border-color: var(--warn-border);
+}
+/* The most repeated element in the product was set in the product's scarcest
+   colour: eleven brass DEMO chips on the Audit page against one governance
+   boundary. Brass answers exactly one question — where does authority begin —
+   and a provenance tag is not an answer to it. The dashed edge already says
+   "not measured"; it does not need the boundary's colour to say it. */
+.prov--demo {
+  color: var(--text-tertiary);
+  border-color: var(--border-strong);
+  border-style: dashed;
+}
+
+/* --------------------------------------------------------------- ledger --- */
+.ledger {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ledger__from {
+  font-weight: 500;
+}
+.ledger__to {
+  font-weight: 700;
+}
+.ledger__unit {
+  font-size: 0.82em;
+  color: var(--text-tertiary);
+}
+.ledger__arrow {
+  color: var(--text-tertiary);
+  align-self: center;
+}
+
+.ledger--changed .ledger__from {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.ledger--changed .ledger__to,
+.ledger--changed .ledger__arrow {
+  color: var(--warn-fg);
+}
+.ledger--blocked .ledger__to,
+.ledger--blocked .ledger__arrow {
+  color: var(--danger-fg);
+}
+
+.ledger--sm {
+  font-size: var(--text-md);
+}
+.ledger--md {
+  font-size: var(--text-lg);
+}
+.ledger--lg {
+  font-size: var(--text-2xl);
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* -------------------------------------------------------------- metrics --- */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.metrics__cell {
+  padding: var(--sp-3) var(--sp-4);
+  border-right: 1px solid var(--border-hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.metrics__cell:last-child {
+  border-right: none;
+}
+.metrics__cell--wide {
+  grid-column: span 2;
+}
+
+.metrics__label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.metrics__value {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.metrics__note {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  line-height: var(--leading-snug);
+}
+
+.metrics__cell.is-ok .metrics__value {
+  color: var(--ok-fg);
+}
+.metrics__cell.is-warn .metrics__value {
+  color: var(--warn-fg);
+}
+.metrics__cell.is-danger .metrics__value {
+  color: var(--danger-fg);
+}
+
+@media (max-width: 900px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metrics__cell {
+    border-bottom: 1px solid var(--border-hairline);
+  }
+  .metrics__cell--wide {
+    grid-column: span 2;
+  }
+}
+
+/* ------------------------------------------------------- checks & gates --- */
+.checks,
+.gates {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.checks__row,
+.gates__row {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-hairline);
+}
+.checks__row:last-child,
+.gates__row:last-child {
+  border-bottom: none;
+}
+
+.checks__icon,
+.gates__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.checks__icon.is-ok,
+.gates__icon.is-ok {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+.checks__icon.is-warn {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+.checks__icon.is-danger,
+.gates__icon.is-danger {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+.gates__icon.is-neutral {
+  background: var(--neutral-bg);
+  color: var(--text-tertiary);
+}
+
+.checks__body,
+.gates__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.checks__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.checks__label {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.checks__ids {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+.checks__rule {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+.checks__reason {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--warn-fg);
+}
+
+/* Threshold and actuals, as the engine recorded them. Laid out as a strip so a
+   reader can scan the arithmetic without reading the sentence. */
+.checks__measure {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  padding: var(--sp-2) 0 0;
+}
+.checks__measure > div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+.checks__measure dt {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.checks__measure dd {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.checks__message {
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  line-height: var(--leading-snug);
+}
+.checks__rec {
+  font-size: var(--text-sm);
+  color: var(--warn-fg);
+}
+.checks__row--failed .checks__message {
+  color: var(--text-primary);
+}
+
+.gates__label {
+  font-size: var(--text-md);
+  font-weight: 500;
+}
+.gates__detail {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  line-height: var(--leading-snug);
+}
+.gates__row--skipped .gates__label {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.payload {
+  display: grid;
+  grid-template-columns: minmax(120px, 38%) 1fr;
+  gap: 2px var(--sp-3);
+  font-size: var(--text-sm);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3);
+}
+.payload__row {
+  display: contents;
+}
+.payload dt {
+  color: var(--text-tertiary);
+  padding: 2px 0;
+}
+.payload dd {
+  padding: 2px 0;
+  word-break: break-word;
+}
+
+/* ------------------------------------------------------------- timeline --- */
+.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.timeline__item {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--panel-pad);
+  border-bottom: 1px solid var(--border-hairline);
+}
+.timeline__item:last-child {
+  border-bottom: none;
+}
+
+.timeline__spine {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+.timeline__spine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: -100%;
+  width: 1px;
+  background: var(--border-hairline);
+}
+.timeline__item:last-child .timeline__spine::before {
+  display: none;
+}
+.timeline__node {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--neutral-solid);
+  box-shadow: 0 0 0 3px var(--bg-surface);
+}
+.timeline__item.is-ok .timeline__node {
+  background: var(--ok-solid);
+}
+.timeline__item.is-warn .timeline__node {
+  background: var(--warn-solid);
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+.timeline__item.is-danger .timeline__node {
+  background: var(--danger-solid);
+  border-radius: 1px;
+}
+
+.timeline__content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.timeline__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.timeline__time {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+.timeline__actor {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.timeline__action {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-accent);
+}
+.timeline__summary {
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  line-height: var(--leading-snug);
+}
+.timeline__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+.timeline__link:hover {
+  color: var(--text-accent);
+  text-decoration: underline;
+}
+.timeline__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+.timeline__toggle:hover {
+  color: var(--text-primary);
+}
+.timeline__chev {
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.timeline__chev.is-open {
+  transform: rotate(90deg);
+}
+.timeline__payload {
+  margin-top: var(--sp-2);
+}
+.timeline--dense .timeline__item {
+  padding: var(--sp-2) var(--panel-pad);
+}
+.timeline--dense .timeline__foot,
+.timeline--dense .timeline__action {
+  display: none;
+}
+
+/* --- decision replay: evidence reconstruction, not an AI retelling ------- */
+.replay {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.replay__lane {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: var(--sp-3);
+}
+
+.replay__route {
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.replay__transport {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.replay__buttons {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.replay__progress {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.replay__track {
+  display: flex;
+  gap: 3px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.replay__track li {
+  flex: 1;
+}
+.replay__tick {
+  display: block;
+  width: 100%;
+  height: 18px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  cursor: pointer;
+  padding: 0;
+  transition: background var(--dur-fast) var(--ease-ui), border-color var(--dur-fast) var(--ease-ui);
+}
+.replay__tick.is-ok.is-played {
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
+}
+.replay__tick.is-watch.is-played {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+}
+.replay__tick.is-blocked.is-played {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+}
+.replay__tick.is-info.is-played {
+  background: var(--neutral-bg);
+  border-color: var(--neutral-border);
+}
+.replay__tick.is-current {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.replay__tick:hover {
+  border-color: var(--border-strong);
+}
+
+.replay__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: var(--sp-5);
+  align-items: start;
+}
+
+.replay__evidence,
+.replay__proof {
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  padding: var(--sp-4);
+  min-width: 0;
+}
+
+.replay__stage-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-bottom: var(--sp-3);
+}
+.replay__stage-actor {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.replay__stage-action {
+  font-family: var(--font-mono);
+  color: var(--text-accent);
+}
+.replay__outcome {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+.replay__outcome.is-ok {
+  color: var(--ok-fg);
+}
+.replay__outcome.is-watch {
+  color: var(--warn-fg);
+}
+.replay__outcome.is-blocked {
+  color: var(--danger-fg);
+}
+.replay__outcome.is-info {
+  color: var(--text-tertiary);
+}
+
+.replay__stage-summary {
+  font-size: var(--text-md);
+  line-height: var(--leading-relaxed);
+  margin-bottom: var(--sp-3);
+}
+
+.replay__proofrows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin: 0;
+}
+.replay__proofrows dt {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.replay__proofrows dd {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.replay__verified {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-hairline);
+  font-size: var(--text-sm);
+}
+.replay__verified.is-ok {
+  color: var(--ok-fg);
+}
+.replay__verified.is-bad {
+  color: var(--danger-fg);
+}
+
+.replay__proofnote {
+  margin-top: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  line-height: var(--leading-relaxed);
+}
+
+@media (max-width: 1100px) {
+  .replay__transport {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .replay__progress {
+    justify-self: end;
+  }
+  .replay__split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ------------------------------------------------------------ lifecycle --- */
+.lifecycle {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.lifecycle__step {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-4);
+  position: relative;
+}
+.lifecycle__step::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 14px;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-hairline);
+}
+.lifecycle__step:last-child::before {
+  display: none;
+}
+.lifecycle__marker {
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  margin-left: 3px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-inset);
+}
+.lifecycle__step.is-done .lifecycle__marker {
+  background: var(--ok-solid);
+  border-color: var(--ok-solid);
+}
+.lifecycle__step.is-current .lifecycle__marker {
+  background: var(--warn-solid);
+  border-color: var(--warn-solid);
+}
+.lifecycle__step.is-failed .lifecycle__marker {
+  background: var(--danger-solid);
+  border-color: var(--danger-solid);
+  border-radius: 1px;
+}
+.lifecycle__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.lifecycle__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.lifecycle__label {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.lifecycle__actor {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+.lifecycle__time {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-left: auto;
+}
+.lifecycle__detail {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-snug);
+}
+
+/* ------------------------------------------------------- boundary rule --- */
+.boundary-rule {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1px;
+  background: var(--brass);
+  margin: var(--sp-6) 0;
+}
+.boundary-rule__label {
+  position: absolute;
+  background: var(--bg-canvas);
+  padding: 0 var(--sp-3);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--brass);
+  white-space: nowrap;
+}
+.boundary-rule--vertical {
+  width: 1px;
+  height: auto;
+  align-self: stretch;
+  margin: 0;
+}
+.boundary-rule--vertical .boundary-rule__label {
+  writing-mode: vertical-rl;
+  padding: var(--sp-3) 0;
+}

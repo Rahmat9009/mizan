@@ -1,0 +1,1407 @@
+/* =============================================================================
+   Authorization surfaces
+   -----------------------------------------------------------------------------
+   The signature element and everything that explains it: the three-column
+   Requested → Authorized → Executed ledger, the deterministic "why" chart, the
+   authorization lifetime, agent confidence and its calibration.
+
+   Structural values only — no raw colours. Everything reads from tokens.css.
+   ========================================================================== */
+
+/* ------------------------------------------------ requested → authorized → */
+
+.ledger3 {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: start;
+  gap: var(--sp-3);
+  list-style: none;
+  /* The list marker box, reset. Without this the UA's 40px inline start padding
+     indents the three columns while the measure directly above them starts at
+     the panel edge — so the bar whose whole length *is* the requested quantity
+     did not line up with the figures it governs. */
+  margin: 0;
+  padding-inline-start: 0;
+}
+
+/* Two columns (no execution stage) collapse the trailing arrow slot. */
+.ledger3:has(> :nth-child(3):last-child) {
+  grid-template-columns: 1fr auto 1fr;
+}
+
+.ledger3__col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-top: var(--sp-1);
+  border-top: 2px solid var(--border-subtle);
+}
+
+.ledger3__col.is-reduced {
+  border-top-color: var(--warn-solid);
+}
+.ledger3__col.is-zero {
+  border-top-color: var(--danger-solid);
+}
+.ledger3__col.is-pending {
+  border-top-style: dashed;
+  border-top-width: 1px;
+}
+
+.ledger3__stage {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.ledger3__qty {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* At large size the figure switches to the display face, as the inline ledger
+   already does. 24px of the UI face sat in no declared tier and read smaller
+   than the page title above it; the product's central quantity should be the
+   largest thing on the page that is not the instrument's own name. */
+.ledger3--lg .ledger3__qty {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-display);
+}
+/* The pending readings are words, not figures ("Awaiting verdict", "Nothing to
+   execute"), so they stay in the UI face and take the body step. */
+.ledger3--lg .ledger3__col.is-pending .ledger3__qty {
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  letter-spacing: var(--tracking-normal);
+}
+
+.ledger3__col.is-pending .ledger3__qty {
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.ledger3__col.is-zero .ledger3__qty {
+  color: var(--danger-fg);
+}
+
+.ledger3__notional {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+/* Three clear steps under the promoted ledger: caption 10px, figure 31px,
+   notional 13px. The notional stays immediately beneath its own figure. */
+.ledger3--lg .ledger3__notional {
+  font-size: var(--text-md);
+}
+
+.ledger3__arrow {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  color: var(--text-tertiary);
+  padding-top: var(--sp-4);
+}
+
+/* ------------------------------------------------------------ reason codes */
+
+.reasoncodes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  list-style: none;
+}
+
+.reasoncodes__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+}
+
+.reasoncodes__marker {
+  color: var(--text-tertiary);
+  font-size: var(--text-2xs);
+}
+
+.reasoncodes__code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+.reasoncodes__text {
+  color: var(--text-secondary);
+}
+
+/* ------------------------------------------------------------ decision card */
+
+.dcard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.dcard__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-5);
+  background: var(--bg-panel-head);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.dcard__title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  min-width: 0;
+}
+
+.dcard__meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dcard__verdictbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.chainstamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.chainstamp.is-ok {
+  color: var(--ok-fg);
+}
+.chainstamp.is-bad {
+  color: var(--danger-fg);
+}
+
+.dcard__body {
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.dcard__delta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  font-size: var(--text-md);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--warn-fg);
+}
+
+.dcard--reject .dcard__delta {
+  color: var(--danger-fg);
+}
+
+.dcard__delta-glyph {
+  font-size: var(--text-sm);
+}
+
+.dcard__prevented {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+.dcard__prevented::before {
+  content: '·';
+  margin-right: var(--sp-2);
+}
+
+.dcard__foot {
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--border-hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.dcard__ref {
+  font-size: var(--text-xs);
+}
+
+.dcard__actions {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--border-hairline);
+  background: var(--bg-panel-head);
+  flex-wrap: wrap;
+}
+
+/* ----------------------------------------------------------- prevention bar */
+
+.prevbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.prevbar__track {
+  position: relative;
+  height: 10px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  /* Default / reduction gap: restrained hazard hatch in amber */
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--warn-bg) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+.prevbar__track.is-approved {
+  background-image: none;
+  background-color: var(--bg-inset);
+}
+
+.prevbar__track.is-rejected {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--danger-bg) 0 6px,
+    transparent 6px 12px
+  );
+  border-color: var(--danger-border);
+}
+
+.prevbar__track.is-pending {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--accent-bg) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+.prevbar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ok-solid);
+  border-radius: var(--radius-xs) 0 0 var(--radius-xs);
+}
+
+.prevbar__track.is-approved .prevbar__fill {
+  border-radius: var(--radius-xs);
+}
+
+.prevbar__stop {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--border-strong);
+}
+
+.prevbar__caption {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+  font-variant-numeric: tabular-nums;
+}
+
+.prevbar__caption strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.prevbar--reduce .prevbar__caption strong {
+  color: var(--warn-fg);
+}
+
+.prevbar--reject .prevbar__caption strong {
+  color: var(--danger-fg);
+}
+
+.prevbar__notional {
+  color: var(--text-tertiary);
+}
+
+/* ------------------------------------------------------- authorization seal */
+
+.seal {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--border-hairline);
+  background: var(--bg-inset);
+  font-size: var(--text-sm);
+}
+
+.seal__status {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.seal--active .seal__status {
+  color: var(--warn-fg);
+}
+.seal--used .seal__status {
+  color: var(--ok-fg);
+}
+.seal--expired .seal__status,
+.seal--invalidated .seal__status {
+  color: var(--danger-fg);
+}
+.seal--none .seal__status {
+  color: var(--text-tertiary);
+}
+
+.seal__id {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.seal__life {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.seal__bindings {
+  display: flex;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.seal__binding {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.seal__bindkey {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+.seal__binding code {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.seal__void {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--danger-fg);
+  border: 1px solid var(--danger-border);
+  background: var(--danger-bg);
+  border-radius: var(--radius-sm);
+  padding: 1px var(--sp-2);
+  letter-spacing: var(--tracking-label);
+}
+
+@media (max-width: 900px) {
+  .seal__bindings {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* ------------------------------------------------------------- why? panel */
+
+.why {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.why__lede {
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  max-width: 62ch;
+}
+
+.why__empty {
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+}
+
+/* A check is a section of the panel, not a card inside it. The system's own
+   No-Cards-In-Cards rule was being broken here by the component that carries
+   the product's central argument; nested containment is now a hairline and a
+   tonal band. */
+.why__check {
+  border-top: 1px solid var(--border-hairline);
+  padding: var(--sp-4) 0 var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.why__check:first-of-type {
+  border-top: 0;
+  padding-top: var(--sp-2);
+}
+
+/* A failing check is marked by a rule against its edge rather than by tinting
+   a whole block amber — the reading inside it has to stay the loudest thing. */
+.why__check.is-failed {
+  border-left: 2px solid var(--warn-solid);
+  padding-left: var(--sp-4);
+  margin-left: calc(var(--sp-4) * -1);
+}
+
+.why__check.is-binding {
+  border-left-color: var(--danger-solid);
+}
+
+.why__checkhead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.why__checkname {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.why__limit {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Binding" is a policy fact, not a boundary. Brass marks one thing in this
+   product and this is not it. */
+.why__binding {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--danger-fg);
+}
+
+.why__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  list-style: none;
+}
+
+.why__row {
+  display: grid;
+  grid-template-columns: 12ch 1fr 8ch 1.5ch;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.why__rows--plain .why__row {
+  grid-template-columns: 12ch 1fr 1.5ch;
+}
+
+.why__rowlabel {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.why__track {
+  position: relative;
+  height: 14px;
+  background: var(--bg-track);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+
+.why__bar {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  border-radius: var(--radius-xs);
+}
+/* A bar inside its limit is a measurement, not a celebration: it takes the
+   instrument colour. Only a breach takes a semantic colour, so the eye lands on
+   the row that crossed the line. The ✓ / ✕ carries the verdict either way. */
+.why__bar.is-ok {
+  background: var(--accent);
+}
+.why__bar.is-over {
+  background: var(--danger-solid);
+}
+
+/* The limit. A hard line, because that is what it is. */
+.why__threshold {
+  position: absolute;
+  inset-block: -2px;
+  width: 2px;
+  background: var(--text-primary);
+  transform: translateX(-1px);
+}
+
+.why__rowvalue {
+  font-size: var(--text-xs);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.why__mark {
+  font-size: var(--text-sm);
+  line-height: 1;
+  text-align: center;
+}
+.why__mark.is-ok {
+  color: var(--ok-fg);
+}
+.why__mark.is-bad {
+  color: var(--danger-fg);
+}
+
+.why__code {
+  font-size: var(--text-xs);
+  border-top: 1px solid var(--border-hairline);
+  padding-top: var(--sp-2);
+}
+
+.why__result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  border-top: 1px solid var(--border-hairline);
+  padding-top: var(--sp-3);
+}
+
+.why__resultrow {
+  display: flex;
+  gap: var(--sp-3);
+  font-size: var(--text-md);
+}
+
+.why__resultrow dt {
+  width: 12ch;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.why__resultrow dd {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.why__note {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.why__note--hard {
+  color: var(--danger-fg);
+  max-width: 66ch;
+}
+
+/* ------------------------------------------------------------ authorization */
+
+.auth {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.auth__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.auth__label {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.auth__id {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.auth__status {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--ok-fg);
+}
+.auth__status.is-invalid {
+  color: var(--danger-fg);
+}
+
+.auth__subject {
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.auth__track {
+  height: 10px;
+  background: var(--bg-track);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+
+.auth__fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  background: var(--accent);
+  transition: transform var(--dur-fast) linear;
+}
+.auth__fill.is-invalid {
+  background: var(--danger-solid);
+}
+.auth__fill.is-static {
+  transition: none;
+}
+
+.auth__timing {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.auth__bindings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.auth__binding {
+  display: flex;
+  gap: var(--sp-3);
+  font-size: var(--text-sm);
+}
+
+.auth__binding dt {
+  width: 22ch;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.auth__binding dd {
+  color: var(--text-secondary);
+}
+
+.auth__note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  max-width: 62ch;
+}
+.auth__note svg {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.auth--none {
+  gap: var(--sp-1);
+}
+
+.auth__nonetitle {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.auth__nonebody {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  max-width: 62ch;
+  line-height: var(--leading-relaxed);
+}
+
+.authinvalid {
+  border: 1px solid var(--danger-border);
+  background: var(--danger-bg);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.authinvalid__title {
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  color: var(--danger-fg);
+}
+
+.authinvalid__body,
+.authinvalid__foot {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  max-width: 66ch;
+}
+
+.authinvalid__result {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+/* --------------------------------------------------------------- confidence */
+
+.confidence {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.confidence__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.confidence__label {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.confidence__raw,
+.confidence__cal {
+  font-size: var(--text-md);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.confidence__raw {
+  color: var(--text-secondary);
+}
+
+.confidence__cal {
+  color: var(--text-primary);
+}
+
+.confidence__arrow {
+  color: var(--text-tertiary);
+  align-self: center;
+}
+
+.confidence__note {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  max-width: 62ch;
+}
+
+.confidence__note--absent {
+  color: var(--text-tertiary);
+}
+
+/* ------------------------------------------------------------- narrow width */
+
+/* The display figure steps down before the columns get tight, so promoting the
+   ledger never costs it a wrapped line. Three columns still hold at 800. */
+@media (max-width: 800px) {
+  .ledger3--lg .ledger3__qty {
+    font-size: var(--text-2xl);
+  }
+}
+@media (max-width: 480px) {
+  .ledger3--lg .ledger3__qty {
+    font-size: var(--text-xl);
+  }
+}
+
+@media (max-width: 720px) {
+  .ledger3,
+  .ledger3:has(> :nth-child(3):last-child) {
+    grid-template-columns: 1fr;
+  }
+  .ledger3__arrow {
+    display: none;
+  }
+  .why__row {
+    grid-template-columns: 10ch 1fr 7ch 1.5ch;
+    gap: var(--sp-2);
+  }
+}
+
+/* Below 480px the bar is the only part that still teaches anything, so the
+   label and value columns give way to it rather than the reverse. */
+@media (max-width: 480px) {
+  .why__row {
+    grid-template-columns: 8ch minmax(0, 1fr) 6ch 1.5ch;
+    gap: var(--sp-1);
+  }
+  .why__rows--plain .why__row {
+    grid-template-columns: 8ch minmax(0, 1fr) 1.5ch;
+  }
+  .crowd__member {
+    grid-template-columns: 9ch minmax(0, 1fr) 6ch 1.5ch;
+    gap: var(--sp-1);
+  }
+  .auth__binding {
+    flex-direction: column;
+    gap: 0;
+  }
+  .auth__binding dt {
+    width: auto;
+  }
+}
+
+/* =============================================================================
+   Quiet state — the boring day as proof of value
+   ========================================================================== */
+
+.quiet {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
+  gap: var(--sp-5) var(--sp-8);
+  padding: var(--sp-5) var(--sp-6);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.quiet__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.quiet__headline {
+  font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-secondary);
+  margin-top: var(--sp-2);
+}
+/* The figure is the claim; "decisions governed" is its unit. The utility class
+   that gives the number its tabular face also drops it to 12px, so the quiet
+   state's headline was a 24px label wrapped around a caption-sized figure. */
+.quiet__headline strong {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.quiet__breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  list-style: none;
+  margin-top: var(--sp-2);
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+}
+.quiet__breakdown li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.quiet__glyph {
+  font-size: var(--text-2xs);
+}
+.quiet__glyph.is-ok {
+  color: var(--ok-fg);
+}
+.quiet__glyph.is-warn {
+  color: var(--warn-fg);
+}
+.quiet__glyph.is-danger {
+  color: var(--danger-fg);
+}
+
+/* Requested, authorized, prevented. The third is the one that renews a
+   contract, so it carries the emphasis rather than sharing it. */
+.quiet__flow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  align-self: center;
+}
+
+.quiet__flowheads {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.quiet__flowcell {
+  border-top: 2px solid var(--border-subtle);
+  padding-top: var(--sp-2);
+}
+/* Amber, not brass. Brass now marks exactly one thing in this product — the
+   governance datum — and prevented exposure is an intervention, which is what
+   amber means everywhere else in the system. */
+.quiet__flowcell.is-emphasis {
+  border-top-color: var(--warn-solid);
+}
+
+.quiet__flowlabel {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.quiet__flowvalue {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  letter-spacing: var(--tracking-tight);
+}
+.quiet__flowcell.is-emphasis .quiet__flowvalue {
+  color: var(--text-primary);
+}
+
+.quiet__bar {
+  position: relative;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  overflow: hidden;
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--warn-bg) 0 5px,
+    transparent 5px 10px
+  );
+}
+
+.quiet__barfill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ok-solid);
+  border-radius: var(--radius-pill) 0 0 var(--radius-pill);
+}
+
+.quiet__barstop {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--brass);
+}
+
+.quiet__ratio {
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.quiet__ratio strong {
+  color: var(--warn-fg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.quiet__foot {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border-hairline);
+  padding-top: var(--sp-3);
+}
+
+.quiet__verdict {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  font-size: var(--text-base);
+  color: var(--warn-fg);
+}
+.quiet__verdict.is-calm {
+  color: var(--text-secondary);
+}
+/* The evidence behind the claim, set as the quieter half of the sentence. */
+.quiet__proof {
+  font-size: var(--text-md);
+  color: var(--text-tertiary);
+}
+
+.quiet__chain {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-sm);
+  color: var(--ok-fg);
+  font-variant-numeric: tabular-nums;
+}
+.quiet__chainlink {
+  color: var(--text-accent);
+  margin-left: var(--sp-2);
+}
+.quiet__chainlink:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .quiet {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .quiet__flow {
+    gap: var(--sp-3);
+  }
+}
+
+/* =============================================================================
+   Agent crowding
+   ========================================================================== */
+
+.page--crowding {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.crowd__lede {
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+  max-width: 62ch;
+}
+
+/* The sentence the product is sold on. It is set as a statement, not a badge. */
+.crowd__claim {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  max-width: 74ch;
+  /* An emphasis rule, not the boundary. Brass marks where intelligence ends
+     and authority begins; this callout is neither, so it takes the strong
+     border from the neutral ramp. */
+  border-left: 2px solid var(--border-strong);
+  padding-left: var(--sp-4);
+}
+.crowd__claim strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.crowd__members {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  list-style: none;
+}
+
+.crowd__member {
+  display: grid;
+  grid-template-columns: 20ch minmax(0, 1fr) 18ch 7ch 1.5ch;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.crowd__member--total,
+.crowd__member--projected {
+  border-top: 1px solid var(--border-hairline);
+  padding-top: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+
+.crowd__agent {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crowd__member--total .crowd__agent,
+.crowd__member--projected .crowd__agent {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.crowd__track {
+  position: relative;
+  height: 14px;
+  background: var(--bg-track);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+
+/* The bar is exactly proportional at every value. It carries no minimum width:
+   a 4px floor inflated a 3.64% reading into something that measured wider than
+   it is, which is the one thing a quantitative bar may never do. */
+.crowd__bar {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  background: var(--accent);
+  border-radius: var(--radius-xs);
+}
+/* Presence tick. A 1px mark pinned to the bar's own endpoint, so a reading too
+   small to paint is still locatable. It sits inside the measured extent rather
+   than extending it, and it is not the measurement — the numeric label beside
+   the bar remains authoritative. */
+.crowd__bar::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  width: 1px;
+  background: var(--accent);
+}
+.crowd__bar.is-over::after,
+.crowd__bar.is-projected::after {
+  background: var(--warn-solid);
+}
+.crowd__bar.is-over {
+  background: var(--warn-solid);
+}
+/* A projected figure is hatched: it has not happened, and it must not read as
+   though it has. */
+.crowd__bar.is-projected {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--warn-solid) 0 4px,
+    transparent 4px 8px
+  );
+  border: 1px solid var(--warn-border);
+}
+
+.crowd__guide {
+  position: absolute;
+  inset-block: -2px;
+  width: 2px;
+  background: var(--text-primary);
+  transform: translateX(-1px);
+}
+
+.crowd__symbol {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crowd__weight {
+  font-size: var(--text-sm);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.crowd__mark {
+  font-size: var(--text-sm);
+  line-height: 1;
+  text-align: center;
+}
+.crowd__mark.is-ok {
+  color: var(--ok-fg);
+}
+.crowd__mark.is-bad {
+  color: var(--danger-fg);
+}
+
+.crowd__guidance {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-hairline);
+  padding-top: var(--sp-3);
+}
+
+.crowd__lower {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.crowd__facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  list-style: none;
+}
+
+.crowd__fact {
+  display: flex;
+  gap: var(--sp-4);
+  align-items: baseline;
+}
+
+.crowd__factshare {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--warn-fg);
+  min-width: 5ch;
+}
+
+.crowd__factlabel {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.crowd__factdetail {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  max-width: 60ch;
+}
+
+.crowd__unwind {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+.crowd__unwind strong {
+  font-size: var(--text-xl);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1100px) {
+  .crowd__lower {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 820px) {
+  .crowd__member {
+    grid-template-columns: 12ch minmax(0, 1fr) 6ch 1.5ch;
+  }
+  .crowd__symbol {
+    display: none;
+  }
+}
+
+/* --- unified crowding scale header & shared axis ------------------------- */
+
+.crowdscale {
+  padding: var(--sp-3) var(--panel-pad);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+
+.crowdscale__head {
+  display: grid;
+  grid-template-columns: 20ch minmax(0, 1fr) 18ch 7ch 1.5ch;
+  align-items: end;
+  gap: var(--sp-3);
+}
+
+.crowdscale__headkey,
+.crowdscale__headmeta,
+.crowdscale__headval {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.crowdscale__headval {
+  text-align: right;
+}
+
+.crowdscale__axis {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-tertiary);
+  border-bottom: 1px solid var(--border-hairline);
+  padding-bottom: 2px;
+}
+
+.crowdscale__axistick {
+  font-variant-numeric: tabular-nums;
+}
+
+.crowd__excess {
+  position: absolute;
+  inset-block: 0;
+  background-image: repeating-linear-gradient(
+    135deg,
+    currentColor 0 2px,
+    transparent 2px 6px
+  );
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+@media (max-width: 820px) {
+  .crowdscale__head {
+    grid-template-columns: 12ch minmax(0, 1fr) 6ch 1.5ch;
+  }
+  .crowdscale__headmeta {
+    display: none;
+  }
+}

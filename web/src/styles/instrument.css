@@ -1,0 +1,985 @@
+/* =============================================================================
+   The instrument layer
+   -----------------------------------------------------------------------------
+   Two primitives carry this variant:
+
+     .datum   the governance boundary as page architecture. One per page. Its
+              intelligence half is a hairline and its governance half is brass,
+              so the line changes material exactly where authority begins.
+
+     .scale   one calibrated axis, one limit rule, several readings. Replaces
+              stacked bars carrying private threshold markers.
+
+   No raw colour values. Roles only.
+   ========================================================================== */
+
+/* ============================================================== the datum === */
+
+.datum {
+  --datum-rule: 1px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4) 0 0;
+  margin: var(--sp-1) 0;
+}
+
+.datum__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 0;
+}
+
+.datum__half {
+  min-width: 0;
+}
+
+/* The register name. Above the line this reads "Intelligence"; past the
+   boundary it reads "Authority". The two words are the whole argument. */
+.datum__register {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 0 0 var(--sp-2);
+}
+.datum__half--governance .datum__register {
+  color: var(--brass);
+  text-align: right;
+}
+
+.datum__stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+.datum__stageitem {
+  min-width: 0;
+}
+
+/* Each stage is a tick standing on the datum. The marker sits on the rule
+   itself, so the trace and the boundary are one object rather than two. */
+.datum__stage {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: var(--sp-1) var(--sp-2) var(--sp-3);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  color: inherit;
+  transition: background-color var(--dur-fast) var(--ease-ui);
+}
+button.datum__stage {
+  cursor: pointer;
+}
+button.datum__stage:hover {
+  background: var(--bg-hover);
+}
+button.datum__stage:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.datum__stage.is-active {
+  background: var(--bg-active);
+}
+
+.datum__stagelabel {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: var(--leading-snug);
+  overflow-wrap: anywhere;
+}
+.datum__stagestate {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.datum__stage.is-ok .datum__stagestate {
+  color: var(--ok-fg);
+}
+.datum__stage.is-warn .datum__stagestate {
+  color: var(--warn-fg);
+}
+.datum__stage.is-danger .datum__stagestate {
+  color: var(--danger-fg);
+}
+.datum__stage.is-accent .datum__stagestate {
+  color: var(--text-accent);
+}
+
+/* The marker straddles the rule. */
+/* The marker straddles the rule: half above, half below, so the trace is
+   physically standing on the boundary rather than floating near it. */
+.datum__marker {
+  position: absolute;
+  left: var(--sp-2);
+  bottom: -7px;
+  width: 13px;
+  height: 13px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-canvas);
+  z-index: 1;
+}
+.datum__marker-shape {
+  width: 7px;
+  height: 7px;
+  background: var(--neutral-solid);
+  border-radius: var(--radius-pill);
+}
+.datum__stage.is-ok .datum__marker-shape {
+  background: var(--ok-solid);
+}
+.datum__stage.is-accent .datum__marker-shape {
+  background: var(--accent);
+}
+/* Governance readings take the diamond; intelligence keeps the circle, so the
+   two registers differ in shape as well as in the colour of the rule and a
+   greyscale or colour-blind reader still sees two registers. */
+.datum__half--governance .datum__marker-shape {
+  width: 8px;
+  height: 8px;
+  border-radius: 0;
+  transform: rotate(45deg);
+}
+.datum__stage.is-warn .datum__marker-shape {
+  background: var(--warn-solid);
+}
+.datum__stage.is-danger .datum__marker-shape {
+  background: var(--danger-solid);
+  border-radius: 1px;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .datum__stage.is-state-running .datum__marker-shape {
+    animation: datum-pulse 1.8s var(--ease-in-out) infinite;
+  }
+}
+@keyframes datum-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Quantity leaving the stage, printed below the rule where the reading is a
+   number the governance half changed. */
+.datum__stageqty {
+  font-size: var(--text-2xs);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  min-height: 14px;
+  padding-left: 21px;
+}
+
+/* ---- the rule itself ---------------------------------------------------- */
+
+.datum__half {
+  border-bottom: var(--datum-rule) solid var(--border-strong);
+}
+/* Past the boundary the line is brass. The rule changes material exactly where
+   authority begins, which is the whole device. */
+.datum__half--governance {
+  border-bottom-color: var(--brass);
+}
+
+.datum--bare .datum__stages {
+  display: none;
+}
+.datum--bare .datum__grid {
+  align-items: center;
+}
+.datum--bare .datum__register {
+  margin-bottom: var(--sp-1);
+}
+
+/* ---- the boundary marker ------------------------------------------------ */
+
+.datum__mark {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-3);
+}
+/* The gate post. The rule breaks here and a taller brass stroke crosses it, so
+   the boundary reads as something a proposal passes through rather than as a
+   gap in the drawing. */
+.datum__tick {
+  order: 2;
+  width: var(--datum-rule);
+  height: 26px;
+  background: var(--brass);
+  margin-bottom: -13px;
+}
+.datum__label {
+  order: 1;
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--brass);
+  white-space: nowrap;
+}
+
+.datum__foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  padding-top: var(--sp-3);
+}
+.datum__caption {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  max-width: 78ch;
+}
+.datum__readout {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  margin-left: auto;
+}
+
+.datum__detail {
+  border-top: 1px solid var(--border-hairline);
+  padding-top: var(--sp-3);
+  min-height: 48px;
+}
+.datum__detail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-1);
+}
+.datum__detail-state {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+.datum__detail-state.is-ok {
+  color: var(--ok-fg);
+}
+.datum__detail-state.is-warn {
+  color: var(--warn-fg);
+}
+.datum__detail-state.is-danger {
+  color: var(--danger-fg);
+}
+.datum__detail-state.is-accent {
+  color: var(--text-accent);
+}
+.datum__detail-state.is-neutral {
+  color: var(--text-tertiary);
+}
+.datum__detail-latency,
+.datum__detail-qty {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.datum__detail-text,
+.datum__detail-hint {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  max-width: 90ch;
+}
+.datum__detail-hint {
+  color: var(--text-tertiary);
+}
+
+.datum--sm .datum__stagelabel {
+  font-size: var(--text-xs);
+}
+.datum--sm .datum__stage {
+  padding-bottom: var(--sp-3);
+}
+.datum--sm .datum__stageqty {
+  display: none;
+}
+
+/* ---- narrow ------------------------------------------------------------- */
+
+/* The device gets stronger as the window narrows rather than disappearing into
+   a horizontal scroller: the two registers stack and the brass rule runs the
+   full width between them, carrying its label. */
+@media (max-width: 900px) {
+  .datum__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .datum__half--governance .datum__register {
+    text-align: left;
+  }
+  .datum__half--intelligence {
+    border-bottom: 0;
+  }
+  .datum__half--governance {
+    padding-top: var(--sp-4);
+  }
+  .datum__mark {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    padding: var(--sp-3) 0 0;
+    gap: var(--sp-3);
+  }
+  .datum__mark::after {
+    content: '';
+    order: 3;
+    flex: 1;
+    height: var(--datum-rule);
+    background: var(--brass);
+  }
+  .datum__tick {
+    order: 1;
+    width: 14px;
+    height: var(--datum-rule);
+    margin: 0;
+  }
+  .datum__label {
+    order: 2;
+    white-space: normal;
+  }
+  .datum__stages {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .datum__stage {
+    padding-bottom: var(--sp-2);
+    border-bottom: 1px solid var(--border-hairline);
+    border-radius: 0;
+  }
+  .datum__marker {
+    position: static;
+    background: none;
+    justify-self: start;
+  }
+  .datum__stageqty {
+    padding-left: 0;
+  }
+}
+
+/* Two columns hold down to the narrowest supported width: a stage is a short
+   label over a state word, and stacking eight of them singly turns the trace
+   into a scroll. */
+@media (max-width: 380px) {
+  .datum__stage {
+    padding-left: var(--sp-1);
+    padding-right: var(--sp-1);
+  }
+}
+
+/* ====================================================== the section rule === */
+
+/* A page division that is deliberately not the datum. Same two-register shape,
+   ordinary hairline, ordinary ink — so a reader who has learned that brass means
+   "authority begins here" is never taught that it also means "new section". */
+.sectionrule {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4) 0 0;
+  margin: var(--sp-1) 0;
+}
+.sectionrule__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+}
+.sectionrule__register {
+  margin: 0 0 var(--sp-1);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.sectionrule__register--second {
+  text-align: right;
+}
+.sectionrule__caption {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  max-width: 78ch;
+}
+
+@media (max-width: 900px) {
+  .sectionrule__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sectionrule__register--second {
+    text-align: left;
+  }
+}
+
+/* ============================================================== the scale === */
+
+.scale {
+  --gutter: 148px;
+  /* The value and verdict columns, held out of the track so a reading can
+     never land on top of the limit. */
+  --tail: 92px;
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+.scale--sm {
+  --gutter: 104px;
+  --tail: 78px;
+}
+
+.scale__body {
+  position: relative;
+}
+
+/* The region policy does not permit. Drawn once, behind every reading, so
+   "past the limit" is a place rather than a per-row event. Hatching carries it
+   in greyscale and for colour-blind readers. */
+/* The limit, named once at the head of the instrument in a dedicated marker lane.
+   Placed above the reading tracks so readings never collide with the threshold label. */
+.scale__head {
+  position: relative;
+  margin: 0 var(--tail) var(--sp-1) var(--gutter);
+  height: 20px;
+}
+.scale__limitlabel {
+  position: absolute;
+  left: var(--limit);
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+.scale__limitlabel.is-inside {
+  transform: translateX(-100%);
+  padding-right: var(--sp-1);
+}
+.scale__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 1px var(--sp-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-xs);
+  box-shadow: var(--shadow-sm);
+}
+.scale__limitword {
+  color: var(--text-tertiary);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  font-weight: 600;
+}
+.scale__limitval {
+  color: var(--danger-fg);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.scale__zone {
+  position: absolute;
+  top: 20px;
+  bottom: 22px;
+  border-radius: var(--radius-xs);
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--danger-bg) 0 5px,
+    transparent 5px 10px
+  );
+  pointer-events: none;
+}
+/* Positioned against the track column, which is what the readings are drawn
+   in — not against the whole instrument. */
+.scale__zone--above {
+  left: calc(var(--gutter) + (100% - var(--gutter) - var(--tail)) * var(--limit-f));
+  right: var(--tail);
+}
+.scale__zone--below {
+  left: var(--gutter);
+  width: calc((100% - var(--gutter) - var(--tail)) * var(--limit-f));
+}
+
+.scale__limit {
+  position: absolute;
+  top: 20px;
+  bottom: 22px;
+  left: calc(var(--gutter) + (100% - var(--gutter) - var(--tail)) * var(--limit-f));
+  width: 1px;
+  pointer-events: none;
+}
+.scale__limitline {
+  display: block;
+  width: 1px;
+  height: 100%;
+  background: var(--danger-solid);
+}
+
+.scale__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+.scale__row {
+  display: grid;
+  grid-template-columns: var(--gutter) minmax(0, 1fr) calc(var(--tail) - 24px) 24px;
+  align-items: center;
+  gap: 0;
+  min-height: 26px;
+}
+
+.scale__rowlabel {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-snug);
+}
+.scale__glyph {
+  color: var(--text-tertiary);
+  font-size: var(--text-2xs);
+  width: 9px;
+  flex-shrink: 0;
+}
+
+.scale__track {
+  position: relative;
+  display: block;
+  height: 100%;
+  min-height: 26px;
+}
+
+/* A thin rule from zero to the reading, terminating in the reading's own
+   marker. The shape sits exactly where the value is read. */
+.scale__stem {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 3px;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  max-width: 100%;
+}
+.scale__stem.is-ok {
+  background: var(--ok-solid);
+}
+.scale__stem.is-over {
+  background: var(--danger-solid);
+}
+
+.scale__mark {
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  transform: translateY(-50%);
+  background: inherit;
+}
+.scale__mark--current {
+  border-radius: 1px;
+  height: 3px;
+  width: 12px;
+  right: -6px;
+}
+.scale__mark--requested {
+  transform: translateY(-50%) rotate(45deg);
+  border-radius: 1px;
+}
+.scale__mark--authorized {
+  border-radius: var(--radius-pill);
+}
+
+.scale__value {
+  text-align: right;
+  padding-right: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.scale__verdict {
+  justify-self: end;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.scale__verdict.is-ok {
+  color: var(--ok-fg);
+}
+.scale__verdict.is-bad {
+  color: var(--danger-fg);
+}
+
+.scale__axis {
+  position: relative;
+  display: block;
+  margin: var(--sp-1) var(--tail) 0 var(--gutter);
+  height: 20px;
+}
+.scale__axisnote {
+  position: absolute;
+  right: 0;
+  top: 4px;
+  font-size: var(--text-2xs);
+  color: var(--text-tertiary);
+}
+.scale__axisline {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--border-subtle);
+}
+.scale__zero {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  font-size: var(--text-2xs);
+  color: var(--text-tertiary);
+}
+/* ---- the figures-only fallback ------------------------------------------ */
+
+.scale--plain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.scale--plain .scale__row {
+  grid-template-columns: minmax(0, 1fr) auto 24px;
+  border-bottom: 1px solid var(--border-hairline);
+  padding: var(--sp-1) 0;
+}
+.scale--plain .scale__row--limit {
+  border-bottom: 0;
+  color: var(--text-tertiary);
+}
+.scale__plainvalue {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+@media (max-width: 620px) {
+  .scale {
+    --gutter: 96px;
+  }
+  .scale__value {
+    font-size: var(--text-2xs);
+  }
+}
+
+/* ======================================================= the two registers === */
+
+/* Every operational page is composed across the datum: a claim register above
+   it and a ruling register below. The split is the product's own argument
+   turned into the app's spatial grammar, and because it is identical on every
+   surface, an operator builds spatial memory instead of re-reading headings. */
+.register {
+  display: grid;
+  gap: var(--sp-4);
+  align-items: start;
+}
+.register--claim {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+}
+.register--ruling {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+.register__stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .register--claim,
+  .register--ruling {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.dash__datumhead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  padding-top: var(--sp-2);
+}
+.dash__datumsubject {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+}
+.dash__datumsubject .u-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  letter-spacing: var(--tracking-normal);
+}
+
+/* =========================================================== the masthead === */
+
+/* Level 1 of the case file. The verdict has to land before the reader meets a
+   single argument, so it sits above the claim register rather than inside it. */
+.masthead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  align-items: start;
+  gap: var(--sp-6);
+  padding: var(--sp-5) 0 var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.masthead__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-display);
+  color: var(--text-primary);
+}
+.masthead__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.masthead__verdict {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  text-align: right;
+}
+.masthead__delta {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--warn-fg);
+}
+.masthead--reject .masthead__delta {
+  color: var(--danger-fg);
+}
+.masthead__prevented {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+.masthead__identity {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 760px) {
+  .masthead {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-3);
+  }
+  .masthead__verdict {
+    align-items: flex-start;
+    text-align: left;
+  }
+  .masthead__delta {
+    justify-content: flex-start;
+  }
+  .masthead__title {
+    font-size: var(--text-2xl);
+  }
+}
+
+/* ================================================ case file: claim & ruling = */
+
+.claim__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 0.9fr);
+  gap: var(--sp-4);
+  align-items: start;
+}
+.claim__subhead {
+  display: block;
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-hairline);
+}
+
+.ruling {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.ruling__auth {
+  margin: var(--sp-3) 0 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-hairline);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1180px) {
+  .claim__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 820px) {
+  .claim__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ====================================================== the drawn ledger === */
+
+/* The measure whose whole length is the requested quantity. Everything policy
+   authorized is solid; everything it did not permit is left as hatching, so a
+   halved order and a full approval can no longer look identical. */
+.ledger3wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.ledger3measure__whole {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger3measure__track {
+  position: relative;
+  display: block;
+  height: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--danger-bg) 0 5px,
+    transparent 5px 10px
+  );
+}
+.ledger3measure__track.is-pending {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--accent-bg) 0 5px,
+    transparent 5px 10px
+  );
+}
+.ledger3measure__auth {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 1px 0 0 1px;
+  background: var(--ok-solid);
+}
+/* Where the broker stopped, marked on the same measure. It stands proud of the
+   track so it stays visible when execution filled the authorization exactly and
+   the mark would otherwise sit on the seam. */
+.ledger3measure__exec {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text-primary);
+}
+
+.ledger3measure__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin: var(--sp-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.ledger3measure__key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+/* The quantity policy did not permit is the reading the measure exists to make
+   visible, so it is not set at the same weight as the two that surround it. */
+.ledger3measure__key.is-emphasis {
+  font-weight: 600;
+  color: var(--warn-fg);
+}
+/* Each key carries its own swatch shape, so the measure is readable without
+   colour and in greyscale. */
+.ledger3measure__key::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+}
+.ledger3measure__key--auth::before {
+  background: var(--ok-solid);
+}
+.ledger3measure__key--gap::before {
+  border: 1px solid var(--border-strong);
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--danger-bg) 0 3px,
+    transparent 3px 6px
+  );
+}
+.ledger3measure__key--exec::before {
+  width: 2px;
+  height: 12px;
+  border-radius: 0;
+  background: var(--text-primary);
+}

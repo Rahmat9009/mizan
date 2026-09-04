@@ -1,0 +1,651 @@
+/* =============================================================================
+   Controls & registers
+   -----------------------------------------------------------------------------
+   The policy register that replaced Risk Center's card grid, the guarded
+   autonomy control, the guarded kill switch, and the intervention ledger.
+
+   No raw colour values. Roles only.
+   ========================================================================== */
+
+/* ====================================================== the policy register = */
+
+/* One instrument, not nine cards. The policies are compared against each other,
+   so they share a container, a rhythm and a ceiling mark. */
+.policyreg {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.policyreg__head,
+.policyreg__row {
+  display: grid;
+  grid-template-columns:
+    minmax(150px, 1.1fr) minmax(0, 1.5fr) minmax(120px, 1.3fr)
+    minmax(76px, auto) minmax(70px, auto) minmax(96px, auto);
+  gap: var(--sp-4);
+  align-items: center;
+  padding: var(--sp-3) var(--panel-pad);
+}
+
+.policyreg__head {
+  background: var(--bg-panel-head);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.policyreg__headnum {
+  text-align: right;
+}
+
+.policyreg__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.policyreg__row {
+  border-bottom: 1px solid var(--border-hairline);
+}
+.policyreg__row:last-child {
+  border-bottom: 0;
+}
+/* A breached policy is marked by an edge rule rather than by tinting the whole
+   row — the figures inside it have to stay the loudest thing. */
+.policyreg__row.is-breach {
+  box-shadow: inset 2px 0 0 var(--danger-solid);
+}
+.policyreg__row.is-watch {
+  box-shadow: inset 2px 0 0 var(--warn-solid);
+}
+
+.policyreg__title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: var(--leading-snug);
+}
+.policyreg__id {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-2xs);
+  color: var(--text-tertiary);
+}
+.policyreg__desc {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-snug);
+}
+
+/* The ceiling stands at the same place on every row, so utilisation is
+   comparable down the column even though the underlying units are not. */
+.policyreg__track {
+  position: relative;
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-track);
+}
+.policyreg__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+.policyreg__fill.is-ok {
+  background: var(--ok-solid);
+}
+.policyreg__fill.is-warn {
+  background: var(--warn-solid);
+}
+/* Past the ceiling the fill is hatched, so exceeding a limit is a texture as
+   well as a colour. */
+.policyreg__fill.is-over {
+  background-color: var(--danger-solid);
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.3) 0 4px,
+    transparent 4px 8px
+  );
+}
+.policyreg__ceiling {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: 72%;
+  width: 1px;
+  background: var(--text-tertiary);
+}
+.policyreg__nobudget {
+  margin: 0;
+  font-size: var(--text-2xs);
+  color: var(--text-tertiary);
+  line-height: var(--leading-snug);
+}
+
+.policyreg__num {
+  text-align: right;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.policyreg__num--limit {
+  color: var(--text-tertiary);
+}
+.policyreg__state {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1100px) {
+  .policyreg__head {
+    display: none;
+  }
+  .policyreg__row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    gap: var(--sp-2) var(--sp-4);
+    padding: var(--sp-4) var(--panel-pad);
+  }
+  .policyreg__desc,
+  .policyreg__use,
+  .policyreg__state {
+    grid-column: 1 / -1;
+  }
+  .policyreg__num {
+    text-align: left;
+  }
+  .policyreg__num::before {
+    content: 'Current ';
+    color: var(--text-tertiary);
+    font-family: var(--font-ui);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
+  .policyreg__num--limit::before {
+    content: 'Limit ';
+  }
+}
+
+/* ---- the intervention ledger -------------------------------------------- */
+
+.intervention__ledger {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-variant-numeric: tabular-nums;
+}
+.intervention__from {
+  color: var(--text-tertiary);
+}
+.intervention__arrow {
+  color: var(--warn-fg);
+  align-self: center;
+}
+.intervention__to {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+/* ---- the kill switch ----------------------------------------------------- */
+
+.killswitch {
+  margin-top: var(--sp-3);
+}
+.killswitch--armed,
+.killswitch--confirm {
+  border: 1px solid var(--danger-border);
+  background: var(--danger-bg);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3);
+}
+.killswitch__title {
+  margin: 0 0 var(--sp-1);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--danger-fg);
+}
+.killswitch__body {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+.killswitch__row {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* ---- the autonomy control ------------------------------------------------ */
+
+.autonomyctl {
+  position: relative;
+}
+.autonomyctl__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-ui), border-color var(--dur-fast) var(--ease-ui);
+}
+.autonomyctl__trigger:hover,
+.autonomyctl__trigger.is-open {
+  background: var(--bg-active);
+  border-color: var(--border-strong);
+}
+.autonomyctl__trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.autonomyctl__key {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.autonomyctl__value {
+  font-weight: 500;
+}
+
+.autonomyctl__pop {
+  position: absolute;
+  top: calc(100% + var(--sp-2));
+  right: 0;
+  z-index: var(--z-overlay);
+  width: 320px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-overlay);
+  box-shadow: var(--shadow-md);
+}
+.autonomyctl__pophead {
+  margin: 0 0 var(--sp-2);
+  color: var(--text-tertiary);
+}
+.autonomyctl__list {
+  list-style: none;
+  margin: 0 0 var(--sp-3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.autonomyctl__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-ui);
+}
+.autonomyctl__item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.autonomyctl__item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.autonomyctl__item.is-current {
+  background: var(--bg-active);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+.autonomyctl__itemnow {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.autonomyctl__note,
+.autonomyctl__now {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.autonomyctl__confirm {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-hairline);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+.autonomyctl__confirm p {
+  margin: 0 0 var(--sp-3);
+}
+.autonomyctl__confirmrow {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.autonomyctl--panel .autonomyctl__options {
+  display: flex;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-2);
+}
+.autonomyctl__option {
+  min-height: 32px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-ui), border-color var(--dur-fast) var(--ease-ui);
+}
+.autonomyctl__option:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+.autonomyctl__option:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.autonomyctl__option.is-current {
+  background: var(--bg-active);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+@media (max-width: 900px) {
+  .autonomyctl__pop {
+    width: min(320px, calc(100vw - var(--sp-8)));
+  }
+}
+
+
+/* ============================================ the boundary inside a table === */
+
+/* The same device, reinterpreted for tabular data: the brass rule runs down the
+   column where authorization ends and the broker begins. */
+/* `.table__row` is not a class the table renders — rows carry
+   `table__row--activatable` or nothing — so only the header cell ever matched
+   and the rule was a 31px brass stub above an unruled column. The Orders page
+   tells the reader in its own body copy that this rule is the boundary. */
+.table tbody .is-boundary,
+.table thead .is-boundary {
+  border-left: 1px solid var(--brass);
+}
+.table thead .is-boundary {
+  position: relative;
+}
+
+.cell-instrument__ref {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-2xs);
+  color: var(--text-tertiary);
+  user-select: all;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+  cursor: copy;
+}
+.cell-instrument__ref:hover {
+  color: var(--text-primary);
+}
+
+/* --- the lifecycle filter, split at the broker ---------------------------- */
+
+.lifefilter {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.lifefilter__all {
+  margin-bottom: 1px;
+}
+
+.lifefilter__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.lifefilter__group + .lifefilter__group {
+  padding-left: var(--sp-4);
+  border-left: 1px solid var(--border-strong);
+}
+
+.lifefilter__label {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 900px) {
+  .lifefilter__group + .lifefilter__group {
+    padding-left: 0;
+    padding-top: var(--sp-3);
+    border-left: 0;
+    border-top: 1px solid var(--border-strong);
+    width: 100%;
+  }
+}
+
+
+/* ---- the compact confidence readout ------------------------------------- */
+
+.confidence--compact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.confidence--compact .confidence__raw {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+.confidence--compact .confidence__cal {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.confidence--compact .confidence__arrow {
+  align-self: center;
+  color: var(--text-tertiary);
+}
+/* An absent calibration is stated, never blank and never zeroed. */
+.confidence__nocal {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+
+.crowd__lever {
+  color: var(--text-accent);
+}
+.crowd__lever:hover {
+  text-decoration: underline;
+}
+
+/* ==================================================== risk: policy posture === */
+/* Triage summary answering the operator's first question: what needs attention.
+   Derived strictly from the same policy limits rendered in the control tables.
+   Zero brass — brass is strictly reserved for the governance boundary. */
+.posture {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--sp-6);
+  row-gap: var(--sp-3);
+  padding: var(--sp-4) var(--panel-pad);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--sp-4);
+}
+.posture.is-breach {
+  border-color: var(--danger-border);
+}
+.posture.is-watch-only {
+  border-color: var(--warn-border);
+}
+
+.posture__lede {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-secondary);
+  line-height: var(--leading-snug);
+}
+.posture__lede strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.posture.is-breach .posture__lede strong:first-child {
+  color: var(--danger-fg);
+}
+.posture.is-watch-only .posture__lede strong:first-child {
+  color: var(--warn-fg);
+}
+
+.posture__counts {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  grid-row: 1;
+  grid-column: 2;
+}
+.posture__count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+.posture__count.is-empty {
+  opacity: 0.55;
+}
+.posture__glyph {
+  font-size: var(--text-2xs);
+}
+.posture__count.is-danger .posture__glyph {
+  color: var(--danger-fg);
+}
+.posture__count.is-warn .posture__glyph {
+  color: var(--warn-fg);
+}
+.posture__count.is-ok .posture__glyph {
+  color: var(--ok-fg);
+}
+.posture__count.is-neutral .posture__glyph {
+  color: var(--text-tertiary);
+}
+.posture__n {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.posture__label {
+  text-transform: uppercase;
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  font-weight: 600;
+}
+
+.posture__tightest {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--border-hairline);
+  padding-top: var(--sp-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.posture__tightest strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.posture__tightest .u-mono {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+@media (max-width: 1000px) {
+  .posture {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .posture__counts {
+    grid-row: auto;
+    grid-column: 1;
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+  }
+}
+
+/* Labelled ceiling marker on the policy register header track */
+.policyreg__headuse {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.policyreg__headceiling {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 0 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+}

@@ -1,0 +1,364 @@
+/* =============================================================================
+   Design tokens — Mizan
+   -----------------------------------------------------------------------------
+   Two layers only:
+     1. Palette   (--p-*)  raw values. Never referenced by a component.
+     2. Semantic  (--*)    role names. The only thing components may use.
+
+   Rule enforced by review: no component stylesheet contains a raw colour value.
+   ========================================================================== */
+
+:root {
+  /* ---- Palette: neutral ink (cool charcoal, never pure black) ------------- */
+  --p-ink-1000: #05070b;
+  --p-ink-950: #090a0f;
+  --p-ink-900: #11131c;
+  --p-ink-880: #151824;
+  --p-ink-850: #181b27;
+  --p-ink-800: #1e2230;
+  --p-ink-750: #222636;
+  --p-ink-700: #2d3348;
+  --p-ink-600: #3b4259;
+  --p-ink-500: #4b5563;
+  --p-ink-400: #6b7280;
+  /* Tertiary ink that actually clears 4.5:1. #6B7280 measures 3.66–4.17:1 on
+     the dark surfaces and 4.10–4.63:1 on the light ones, so it failed the
+     product's own AA commitment on the very text it carries most often —
+     column headers, timestamps, units and notes. These two steps replace it in
+     the tertiary role; the old value stays for non-text marks. */
+  --p-ink-420: #7f8898;
+  --p-ink-480: #5f6775;
+  --p-ink-300: #9ca3af;
+  --p-ink-200: #d1d5db;
+  --p-ink-100: #e5e7eb;
+  --p-ink-050: #f3f4f6;
+
+  /* ---- Palette: paper (light theme; off-white, never pure white) ---------- */
+  --p-paper-000: #ffffff;
+  --p-paper-050: #fafafa;
+  --p-paper-100: #f4f4f5;
+  --p-paper-125: #ececee;
+  --p-paper-150: #e4e4e7;
+  --p-paper-200: #d4d4d8;
+  --p-paper-250: #c2c2c9;
+  --p-paper-300: #a1a1aa;
+
+  /* ---- Palette: signal ----------------------------------------------------
+     Instrument blue, not marketing blue. It carries exactly one meaning:
+     "measured, in flight, no verdict yet" — meters, fill progress, running
+     stages, unread markers. Desaturated so it reads as instrumentation and
+     never competes with brass (governance) or the semantic states. It also
+     serves the telemetry role, so the system needs no separate cyan. */
+  --p-signal-300: #9ecbe4;
+  --p-signal-400: #6eaecd;
+  --p-signal-500: #4b93b6;
+  --p-signal-600: #2f7594;
+  --p-signal-700: #205a75;
+
+  /* ---- Palette: brass (governance boundary & brand identity) ------------- */
+  --p-brass-300: #e5c88b;
+  --p-brass-400: #d4af37;
+  --p-brass-500: #c5a059;
+  --p-brass-600: #967432;
+  --p-brass-700: #6c5220;
+  /* Light-theme brass. #967432 measures 3.68–4.34:1 on the light surfaces,
+     which made the most semantically loaded colour in the product its least
+     legible one. This clears 5.26:1 everywhere and still reads as brass. */
+  --p-brass-650: #7a5c25;
+
+  /* ---- Palette: semantic states ------------------------------------------ */
+  --p-green-300: #6ee7b7;
+  --p-green-400: #10b981;
+  --p-green-500: #059669;
+  --p-green-700: #047857;
+  /* Light-theme verdict green. #047857 measures 4.45:1 against the response
+     chip's own tinted backdrop — a chip that rides in the chrome on every
+     route, so the one persistent readout in the product missed AA everywhere.
+     This clears it, and darkens every other light-theme green with it. */
+  --p-green-750: #065f46;
+
+  --p-amber-300: #fcd34d;
+  --p-amber-400: #f59e0b;
+  --p-amber-500: #d97706;
+  --p-amber-700: #b45309;
+  /* Light-theme verdict amber. #b45309 measured 3.79-4.42:1 on every amber
+     backdrop it lands on, worst of all on the masthead REDUCED badge — the
+     verdict word on the flagship case, failing AA on the theme the compliance
+     reader is told to use. */
+  --p-amber-750: #92400e;
+
+  --p-red-300: #fca5a5;
+  --p-red-400: #ef4444;
+  --p-red-500: #dc2626;
+  --p-red-700: #b91c1c;
+
+  --p-paper-gold: #facc15;
+
+  /* ---- Radius: conservative institutional scale ------------------------- */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+
+  /* ---- Spacing: 4px grid ------------------------------------------------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+  --sp-24: 96px;
+
+  /* ---- Type -------------------------------------------------------------- */
+  --font-display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 19px;
+  --text-2xl: 24px;
+  --text-3xl: 31px;
+  --text-4xl: 40px;
+  --text-5xl: 54px;
+  --text-6xl: 72px;
+
+  --leading-tight: 1.08;
+  --leading-snug: 1.28;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  --tracking-display: -0.022em;
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0;
+  --tracking-label: 0.08em;
+  --tracking-eyebrow: 0.16em;
+
+  /* ---- Layout ------------------------------------------------------------ */
+  --sidebar-w: 244px;
+  --topbar-h: 56px;
+  --content-max: 1560px;
+  /* Page gutter. 32px matches the reference container padding; each breakpoint
+     steps it down in shell.css so the chrome and the content stay aligned. */
+  --page-gutter: var(--sp-8);
+
+  /* ---- Motion (all durations collapse to 0 under reduced-motion) ---------- */
+  --dur-instant: 90ms;
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --dur-slow: 380ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  /* Chrome state changes are non-elastic: hover, active and focus settle rather
+     than overshoot. --ease-out stays reserved for entrances. */
+  --ease-ui: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --z-sticky: 20;
+  --z-drawer: 60;
+  --z-overlay: 70;
+  --z-palette: 80;
+  --z-toast: 90;
+}
+
+/* =============================================================================
+   Dark theme — Default institutional operating surface (#090A0F)
+   ========================================================================== */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-canvas: var(--p-ink-950);
+  --bg-sunken: var(--p-ink-1000);
+  --bg-surface: var(--p-ink-900);
+  --bg-raised: var(--p-ink-880);
+  --bg-overlay: var(--p-ink-850);
+  --bg-inset: var(--p-ink-1000);
+  /* Measurement tracks are read against the panel they sit on, not against the
+     canvas, so they get their own role rather than borrowing the inset that
+     also backs inputs, chips and wells. */
+  --bg-track: var(--p-ink-1000);
+  /* Panel headers carry their own band so a header reads as a header. */
+  --bg-panel-head: var(--p-ink-880);
+  /* Sticky chrome is translucent so content passes beneath it. */
+  --bg-chrome: rgba(9, 10, 15, 0.82);
+  --bg-hover: rgba(255, 255, 255, 0.04);
+  --bg-active: rgba(255, 255, 255, 0.08);
+  --bg-selected: rgba(75, 147, 182, 0.12);
+
+  /* Three opaque steps. An alpha border changes strength with whatever sits
+     behind it, so structural edges use real values and hold everywhere. */
+  --border-hairline: var(--p-ink-800);
+  --border-subtle: var(--p-ink-750);
+  --border-strong: var(--p-ink-700);
+  --border-boundary: var(--p-brass-500);
+
+  --text-primary: var(--p-ink-050);
+  --text-secondary: var(--p-ink-300);
+  --text-tertiary: var(--p-ink-420);
+  --text-inverse: var(--p-ink-950);
+  --text-accent: var(--p-signal-300);
+  /* Hover for the inverted primary button: lighter on dark, darker on light.
+     A semantic role, so no component stylesheet reaches into the palette. */
+  --control-invert-hover: var(--p-ink-100);
+
+  --accent: var(--p-signal-400);
+  --accent-bg: rgba(75, 147, 182, 0.12);
+  --accent-border: rgba(110, 174, 205, 0.32);
+
+  --brass: var(--p-brass-500);
+  --brass-dim: var(--p-brass-600);
+  --brass-bg: rgba(197, 160, 89, 0.12);
+  --brass-border: rgba(197, 160, 89, 0.35);
+
+  --ok-fg: var(--p-green-300);
+  --ok-bg: rgba(16, 185, 129, 0.11);
+  --ok-border: rgba(16, 185, 129, 0.3);
+  --ok-solid: var(--p-green-400);
+
+  --warn-fg: var(--p-amber-300);
+  --warn-bg: rgba(245, 158, 11, 0.11);
+  --warn-border: rgba(245, 158, 11, 0.3);
+  --warn-solid: var(--p-amber-400);
+
+  --danger-fg: var(--p-red-300);
+  --danger-bg: rgba(239, 68, 68, 0.11);
+  --danger-border: rgba(239, 68, 68, 0.3);
+  --danger-solid: var(--p-red-400);
+  --critical-fill: var(--p-red-500);
+  --critical-on-fill: var(--p-paper-000);
+
+  --paper-fg: var(--p-paper-gold);
+  --paper-bg: rgba(250, 204, 21, 0.12);
+  --paper-border: rgba(250, 204, 21, 0.35);
+
+  --neutral-fg: var(--p-ink-200);
+  --neutral-bg: rgba(255, 255, 255, 0.06);
+  --neutral-border: rgba(255, 255, 255, 0.14);
+  --neutral-solid: var(--p-ink-400);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 6px 20px -6px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 24px 60px -18px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.45);
+
+  --focus-ring: 0 0 0 2px var(--bg-canvas), 0 0 0 4px var(--p-signal-400);
+  --grid-line: rgba(255, 255, 255, 0.03);
+}
+
+/* =============================================================================
+   Light theme — High-contrast off-white operating surface (#FAFAFA)
+   ========================================================================== */
+[data-theme='light'] {
+  color-scheme: light;
+
+  /* The light theme had chrome at #FAFAFA against a #FAFAFA canvas with panels
+     at #FFFFFF — a two-percent step, so the dark theme's legible three-step
+     surface ramp collapsed into one flat sheet and the Data-Is-Brightest rule
+     had nothing to be brightest against. The chrome now sits a real step below
+     the content it frames, mirroring the dark ramp's ordering. */
+  --bg-canvas: var(--p-paper-100);
+  --bg-sunken: var(--p-paper-125);
+  --bg-surface: var(--p-paper-000);
+  /* Raised chrome sat at #FAFAFA against a #F4F4F5 canvas — a 1.03:1 step, so
+     the active navigation item, the secondary button and the safety rail had no
+     surface identity and the Data-Is-Brightest hierarchy flattened. In light,
+     "raised" is a step *down* from the canvas; the panels stay the brightest
+     thing on screen, which is the rule the ramp exists to serve. */
+  --bg-raised: var(--p-paper-125);
+  --bg-overlay: var(--p-paper-000);
+  --bg-inset: var(--p-paper-125);
+  /* Measurement tracks read against a white panel. At the inset value they were
+     1.18:1 — on Risk Center the utilisation column rendered fills floating in
+     white with no track and no scale, so the one page whose subject is "how much
+     of the limit is in use" had lost the thing being measured against. The inset
+     itself cannot go here: it also backs the provenance chips, whose tertiary
+     ink would stop clearing AA on a darker ground. */
+  --bg-track: var(--p-paper-200);
+  /* The panel header band was 1.04:1 against the panel it heads. */
+  --bg-panel-head: var(--p-paper-125);
+  --bg-chrome: rgba(244, 244, 245, 0.84);
+  --bg-hover: rgba(9, 10, 15, 0.04);
+  --bg-active: rgba(9, 10, 15, 0.08);
+  --bg-selected: rgba(47, 117, 148, 0.10);
+
+  /* Mirrors the dark ramp's contrast steps against the light canvas. The ramp
+     previously started at #ECECEE, which is 1.18:1 on a white panel — table row
+     separators, key/value separators and panel edges did not render at all, and
+     a compliance reader could not track a row across to its state cell. Each
+     step moves down one, keeping three distinguishable strengths. */
+  --border-hairline: var(--p-paper-200);
+  --border-subtle: var(--p-paper-250);
+  --border-strong: var(--p-paper-300);
+  --border-boundary: var(--p-brass-650);
+
+  --text-primary: var(--p-ink-950);
+  --text-secondary: var(--p-ink-500);
+  --text-tertiary: var(--p-ink-480);
+  --text-inverse: var(--p-paper-000);
+  --text-accent: var(--p-signal-700);
+  --control-invert-hover: var(--p-ink-700);
+
+  --accent: var(--p-signal-600);
+  --accent-bg: rgba(47, 117, 148, 0.1);
+  --accent-border: rgba(47, 117, 148, 0.35);
+
+  --brass: var(--p-brass-650);
+  --brass-dim: var(--p-brass-700);
+  --brass-bg: rgba(150, 116, 50, 0.12);
+  --brass-border: rgba(150, 116, 50, 0.35);
+
+  --ok-fg: var(--p-green-750);
+  --ok-bg: rgba(5, 150, 105, 0.1);
+  --ok-border: rgba(5, 150, 105, 0.35);
+  --ok-solid: var(--p-green-500);
+
+  --warn-fg: var(--p-amber-750);
+  --warn-bg: rgba(217, 119, 6, 0.12);
+  --warn-border: rgba(217, 119, 6, 0.36);
+  --warn-solid: var(--p-amber-500);
+
+  --danger-fg: var(--p-red-700);
+  --danger-bg: rgba(220, 38, 38, 0.1);
+  --danger-border: rgba(220, 38, 38, 0.35);
+  --danger-solid: var(--p-red-500);
+  --critical-fill: var(--p-red-700);
+  --critical-on-fill: var(--p-paper-000);
+
+  --paper-fg: #854d0e;
+  --paper-bg: rgba(234, 179, 8, 0.15);
+  --paper-border: rgba(234, 179, 8, 0.4);
+
+  --neutral-fg: var(--p-ink-500);
+  --neutral-bg: rgba(9, 10, 15, 0.05);
+  --neutral-border: rgba(9, 10, 15, 0.15);
+  --neutral-solid: var(--p-ink-400);
+
+  --shadow-sm: 0 1px 2px rgba(9, 10, 15, 0.08);
+  --shadow-md: 0 6px 18px -8px rgba(9, 10, 15, 0.15), 0 1px 2px rgba(9, 10, 15, 0.08);
+  --shadow-lg: 0 24px 56px -20px rgba(9, 10, 15, 0.2), 0 2px 6px rgba(9, 10, 15, 0.1);
+
+  --focus-ring: 0 0 0 2px var(--bg-canvas), 0 0 0 4px var(--p-signal-600);
+  --grid-line: rgba(9, 10, 15, 0.03);
+}
+
+/* Compact density trims vertical rhythm only. Type size is untouched, so the
+   interface never trades legibility for row count. */
+[data-density='compact'] {
+  --row-h: 30px;
+  --cell-pad-y: var(--sp-1);
+  --panel-pad: var(--sp-3);
+}
+[data-density='comfortable'] {
+  --row-h: 38px;
+  --cell-pad-y: var(--sp-2);
+  --panel-pad: var(--sp-4);
+}

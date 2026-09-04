@@ -1,0 +1,1041 @@
+/* =============================================================================
+   Page layouts
+   ========================================================================== */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+
+.pagehead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-1);
+}
+/* The design system defines a 31px headline and the pages were rendering 24px,
+   which left seven of the interface's eight type sizes inside a five-pixel
+   band. Density is not the same as compression: without a loud voice nothing
+   can be quiet. */
+.pagehead__title {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-display);
+}
+.pagehead__desc {
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  max-width: 82ch;
+  margin-top: 4px;
+  line-height: var(--leading-relaxed);
+}
+.pagehead__actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.page__footnote {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  line-height: var(--leading-relaxed);
+  padding-top: var(--sp-2);
+  max-width: 100ch;
+}
+
+/* ------------------------------------------------------------ dashboard --- */
+.panel--pipeline .panel__body {
+  padding-top: var(--sp-5);
+}
+
+.dash__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: var(--sp-4);
+}
+
+.dash__lower {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+@media (max-width: 1280px) {
+  .dash__split,
+  .dash__lower {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.proplist,
+.alertlist,
+.minilist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.proplist__row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3) var(--panel-pad);
+  border-bottom: 1px solid var(--border-hairline);
+  text-align: left;
+}
+.proplist li:last-child .proplist__row {
+  border-bottom: none;
+}
+.proplist__row:hover {
+  background: var(--bg-hover);
+}
+
+.proplist__lead {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.proplist__sym {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.proplist__side {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ok-fg);
+}
+.proplist__side.is-sell {
+  color: var(--danger-fg);
+}
+
+.proplist__mid {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+/* Reason codes are load-bearing in this product, so they wrap rather than
+   being clipped. Below 760px this line was losing the whole code —
+   "AUTHORIZATION_EXPIRED" cut to "Execution · Blocked · …". */
+.proplist__stage {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  line-height: var(--leading-snug);
+}
+/* The reason code takes its own line rather than being hyphenated mid-token or
+   clipped. It is the field an operator is scanning for. */
+.proplist__code {
+  display: inline-block;
+  margin-left: var(--sp-2);
+}
+@media (max-width: 760px) {
+  .proplist__code {
+    display: block;
+    margin-left: 0;
+    margin-top: 2px;
+  }
+}
+
+.proplist__tail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+.proplist__time {
+  font-size: var(--text-2xs);
+  color: var(--text-tertiary);
+}
+
+.alertlist__row {
+  padding: var(--sp-3) var(--panel-pad);
+  border-bottom: 1px solid var(--border-hairline);
+  border-left: 2px solid transparent;
+}
+.alertlist li:last-child.alertlist__row {
+  border-bottom: none;
+}
+.alertlist__row.is-block,
+.alertlist__row.is-high {
+  border-left-color: var(--danger-solid);
+}
+.alertlist__row.is-watch {
+  border-left-color: var(--warn-solid);
+}
+.alertlist__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.alertlist__kind {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.alertlist__sym {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.alertlist__time {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  color: var(--text-tertiary);
+}
+.alertlist__reason {
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  line-height: var(--leading-snug);
+  margin-top: 3px;
+}
+.alertlist__foot {
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-top: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+.alertlist__foot a:hover {
+  color: var(--text-accent);
+  text-decoration: underline;
+}
+
+.minilist__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--panel-pad);
+  border-bottom: 1px solid var(--border-hairline);
+  font-size: var(--text-md);
+}
+.minilist li:last-child.minilist__row {
+  border-bottom: none;
+}
+.minilist__key {
+  font-size: var(--text-sm);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.minilist__mid {
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+}
+.minilist__val {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------ table cells --- */
+.cell-instrument {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.3;
+  min-width: 0;
+}
+.cell-instrument__sym {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.cell-instrument__type {
+  font-size: var(--text-2xs);
+  color: var(--text-tertiary);
+  text-transform: capitalize;
+}
+
+.side {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  color: var(--ok-fg);
+}
+.side--sell {
+  color: var(--danger-fg);
+}
+
+.cell-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.fillcell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+}
+.fillcell__text {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+}
+.fillcell__track {
+  width: 44px;
+  height: 4px;
+  background: var(--bg-track);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.fillcell__fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+/* ------------------------------------------------------------- case file --- */
+.page--case {
+  gap: var(--sp-4);
+}
+
+.case__top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+.backlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+}
+.backlink:hover {
+  color: var(--text-primary);
+}
+.case__identity {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.case__title {
+  font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-display);
+}
+.case__id {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+.case__verdict {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.panel--casepipeline .panel__body {
+  padding: var(--sp-5) var(--panel-pad) var(--sp-3);
+}
+
+.case__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--sp-5);
+  position: relative;
+}
+/* The brass boundary runs down the middle of the case file too. */
+.case__split::before {
+  content: '';
+  position: absolute;
+  left: calc(50% - 1px);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--brass-dim);
+  opacity: 0.5;
+}
+
+.case__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.case__collabel {
+  color: var(--text-tertiary);
+}
+.case__collabel--gov {
+  color: var(--brass);
+}
+
+.scoreline {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  flex-wrap: wrap;
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border-hairline);
+}
+.scoreline > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.scoreline__score {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+}
+
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+}
+
+.panel--verdict {
+  border-color: var(--border-subtle);
+}
+
+.legs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.legs ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.legs__row {
+  display: grid;
+  grid-template-columns: 42px 1fr auto auto;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-2);
+  background: var(--bg-inset);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+.legs__row--short {
+  border-left: 2px solid var(--warn-solid);
+}
+.legs__note {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  line-height: var(--leading-snug);
+}
+
+.case__auditbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  padding: var(--sp-3) 0;
+  font-size: var(--text-sm);
+}
+
+/* Levels 3 to 5. Held behind a tablist so the record opens on its verdict, not
+   on its evidence — the failure mode of every governance product is opening at
+   L4 and calling it transparency. */
+.case__levels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--sp-5);
+  margin-top: var(--sp-2);
+}
+
+.case__levelhint {
+  font-size: var(--text-sm);
+  max-width: 78ch;
+}
+
+.case__evidence,
+.case__record {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.recordlist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  list-style: none;
+}
+
+.recordlist__item {
+  border-left: 2px solid var(--border-subtle);
+  padding-left: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.recordlist__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 1100px) {
+  .case__split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .case__split::before {
+    display: none;
+  }
+  .case__col--gov {
+    border-top: 1px solid var(--brass-dim);
+    padding-top: var(--sp-5);
+  }
+  .case__verdict {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* ------------------------------------------------------------ risk center --- */
+.panel--controls .panel__body {
+  padding: 0;
+}
+.controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.controls__cell {
+  padding: var(--panel-pad);
+  border-right: 1px solid var(--border-hairline);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  align-items: flex-start;
+}
+.controls__cell:last-child {
+  border-right: none;
+}
+.controls__note {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  line-height: var(--leading-snug);
+}
+.switches {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+@media (max-width: 1000px) {
+  .controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .controls__cell {
+    border-right: none;
+    border-bottom: 1px solid var(--border-hairline);
+  }
+}
+
+.panel--limit .panel__body {
+  gap: var(--sp-3);
+}
+.limit__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.limit__title {
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.limit__desc {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-snug);
+}
+.limit__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border-hairline);
+  font-size: var(--text-2xs);
+  color: var(--text-tertiary);
+}
+
+/* ---------------------------------------------------------------- agents --- */
+/* An operational telemetry surface, not a roster of cards. Two lanes read the
+   same six columns in lifecycle order; the brass boundary between them is the
+   page's single declaration. */
+.page--agents .tel .panel__body--flush {
+  overflow-x: auto;
+}
+
+/* Fixed layout: the column budget is declared, not negotiated by content
+   length, so both lanes read on the same grid and a long "currently doing"
+   line wraps inside its own column instead of starving the others. */
+.tel__table {
+  width: 100%;
+  min-width: 0;
+  font-size: var(--text-md);
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.tel__table thead th {
+  text-align: left;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+.tel__table th.is-right,
+.tel__table td.is-right {
+  text-align: right;
+}
+
+.tel__col-stage {
+  width: 18%;
+}
+.tel__col-state {
+  width: 10%;
+}
+.tel__col-doing {
+  width: 23%;
+}
+.tel__col-consumes {
+  width: 18%;
+}
+.tel__col-latency {
+  width: 8%;
+}
+.tel__col-last {
+  width: 23%;
+}
+
+.tel__row > th,
+.tel__row > td {
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--border-hairline);
+  vertical-align: top;
+  line-height: var(--leading-snug);
+}
+.tel__group:last-child .tel__row > th,
+.tel__group:last-child .tel__row > td {
+  border-bottom: none;
+}
+.tel__group.is-open .tel__row > th,
+.tel__group.is-open .tel__row > td {
+  border-bottom-color: transparent;
+  background: var(--bg-hover);
+}
+
+/* The stage cell: ordinal and stage name on the first line, the engine that
+   runs it on the second. A stage name is never truncated to save a column. */
+.tel__stagecell {
+  text-align: left;
+  font-weight: 400;
+}
+/* The hit area is padded out to the product's own 30px control baseline
+   without changing the row's visual rhythm; the negative margin keeps the text
+   on the same line it would sit on unpadded. */
+.tel__disclose {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  padding: 5px 0;
+  margin: -5px 0;
+}
+.tel__disclose:hover .tel__stage {
+  color: var(--accent);
+}
+.tel__chevron {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: transform var(--dur-fast) var(--ease-ui);
+}
+.tel__group.is-open .tel__chevron,
+.tel__card.is-open .tel__chevron {
+  transform: rotate(90deg);
+}
+.tel__disclose[aria-expanded='true'] .tel__chevron {
+  transform: rotate(90deg);
+}
+.tel__ord {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.tel__stage {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.tel__actor {
+  display: block;
+  margin-top: 2px;
+  padding-left: 19px;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+.tel__doing {
+  color: var(--text-secondary);
+}
+/* An identifier is never abbreviated to fit a column; it wraps only where the
+   column genuinely cannot hold it. */
+.tel__consumes {
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.tel__latency {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.tel__last {
+  color: var(--text-secondary);
+}
+.tel__lasttext {
+  display: block;
+}
+.tel__lastat {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+/* --- stage detail ---------------------------------------------------- */
+.tel__detailrow > td {
+  padding: 0 var(--sp-3) var(--sp-3);
+  border-bottom: 1px solid var(--border-hairline);
+  background: var(--bg-hover);
+}
+.tel__group:last-child .tel__detailrow > td {
+  border-bottom: none;
+}
+
+.tel__detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border-left: 2px solid var(--border-strong);
+  padding-left: var(--sp-4);
+}
+.tel__role {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  max-width: 70ch;
+}
+.tel__detailgrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-8);
+}
+.tel__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tel__metriclabel {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.tel__metricvalue {
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.tel__eventshead {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: var(--sp-2);
+}
+.tel__events ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.tel__events li {
+  display: flex;
+  gap: var(--sp-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.tel__events time {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+  min-width: 62px;
+}
+
+/* --- narrow lanes ----------------------------------------------------- */
+.tel__stack {
+  display: none;
+  list-style: none;
+}
+.tel__card {
+  padding: var(--sp-3) var(--panel-pad);
+  border-bottom: 1px solid var(--border-hairline);
+}
+.tel__card:last-child {
+  border-bottom: none;
+}
+.tel__cardhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.tel__card .tel__actor {
+  padding-left: 19px;
+  margin-bottom: var(--sp-3);
+}
+.tel__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-3);
+}
+.tel__fields dt {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 1px;
+}
+.tel__fields dd {
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  line-height: var(--leading-snug);
+}
+.tel__fields dd.is-num {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.tel__card .tel__detail {
+  margin-top: var(--sp-3);
+  padding: var(--sp-3) 0 0 var(--sp-3);
+  border-left: 2px solid var(--border-strong);
+}
+
+@media (min-width: 641px) {
+  .tel__fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-3) var(--sp-4);
+  }
+}
+
+/* Between the stacked layout and full desktop the budget shifts toward the
+   identifier column, so a proposal ID still sets on one line rather than
+   breaking at a hyphen. Nothing is dropped; the prose columns wrap instead. */
+@media (max-width: 1280px) {
+  .tel__col-doing {
+    width: 21%;
+  }
+  .tel__col-consumes {
+    width: 22%;
+  }
+  .tel__col-last {
+    width: 21%;
+  }
+}
+
+@media (max-width: 900px) {
+  .tel__table {
+    display: none;
+  }
+  .tel__stack {
+    display: block;
+  }
+}
+
+
+/* -------------------------------------------------------------- settings --- */
+.page--settings {
+  max-width: 1080px;
+}
+.setting {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sp-6);
+  align-items: start;
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--border-hairline);
+}
+.setting:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.setting:first-child {
+  padding-top: 0;
+}
+.setting__text h3 {
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.setting__text p {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  margin-top: 3px;
+  max-width: 76ch;
+}
+.setting__control {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.policylist {
+  list-style: none;
+  padding: 0;
+}
+.policylist__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-2) var(--panel-pad);
+  border-bottom: 1px solid var(--border-hairline);
+  font-size: var(--text-md);
+}
+.policylist li:last-child.policylist__row {
+  border-bottom: none;
+}
+.policylist__label {
+  margin-right: var(--sp-2);
+}
+.policylist__id {
+  font-size: var(--text-2xs);
+  color: var(--text-tertiary);
+}
+.policylist__value {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.connlist {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.connlist__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-hairline);
+}
+.connlist__row:last-child {
+  border-bottom: none;
+}
+.connlist__label {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.connlist__desc {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.connlist__detail {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.diaggrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-4);
+}
+.diag {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  align-items: flex-start;
+}
+.diag__note {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  line-height: var(--leading-snug);
+}
+
+/* -------------------------------------------------------------- notfound --- */
+.notfound {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  text-align: center;
+  padding: var(--sp-6);
+}
+.notfound h1 {
+  font-size: var(--text-3xl);
+}
+.notfound p {
+  color: var(--text-secondary);
+}
+.notfound a {
+  color: var(--text-accent);
+  text-decoration: underline;
+  margin-top: var(--sp-2);
+}
+
+@media (max-width: 700px) {
+  .setting {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-3);
+  }
+  .setting__control {
+    justify-content: flex-start;
+  }
+  .pagehead {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

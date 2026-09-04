@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-density="comfortable">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2312161f'/%3E%3Cpath d='M8 23V9h4l4 7 4-7h4v14h-4v-8l-4 7-4-7v8z' fill='%2383d7b1'/%3E%3C/svg%3E" />
+    <meta
+      name="description"
+      content="Mizan is the control layer between AI agents and your portfolio. Deterministic risk policy, governed sizing, and audited paper execution."
+    />
+    <title>Mizan — AI Trading Governance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Applied before first paint so the shell never flashes the wrong theme.
+      try {
+        var t = localStorage.getItem('governor.theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+        var d = localStorage.getItem('governor.density');
+        if (d === 'compact' || d === 'comfortable') document.documentElement.dataset.density = d;
+      } catch (e) {
+        /* storage unavailable; defaults stand */
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
