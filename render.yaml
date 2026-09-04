@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: mizan
+    runtime: python
+    buildCommand: ./scripts/build_render.sh
+    startCommand: python scripts/run_operator_api.py --serve-frontend web/dist
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: ALPACA_PAPER
+        value: "true"
+      - key: MIZAN_EXECUTION_ENABLED
+        value: "false"
+      - key: MIZAN_EXECUTION_DRY_RUN
+        value: "true"
+      - key: MIZAN_KILL_SWITCH
+        value: "false"

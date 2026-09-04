@@ -28,6 +28,9 @@ build/
 
 # --- runtime state: ledgers, databases, audit dumps ---
 data/
+# The frontend's TypeScript fixtures are application source, not runtime state.
+!/web/src/data/
+!/web/src/data/**
 *.db
 *.db-shm
 *.db-wal
