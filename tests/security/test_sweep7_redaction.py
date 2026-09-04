@@ -235,14 +235,6 @@ def test_f27_an_adjusted_occ_root_is_a_valid_contract_value(root: str) -> None:
     )
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="F-27 OPEN (HIGH, L0 contracts/canonical.py): the Alpaca key-id value pattern's OCC "
-    "negative lookahead is `[A-Z]{1,6}` and so misses an ADJUSTED OCC root, which carries a "
-    "numeric suffix (AKAM1, PKG1). Those symbols are redacted, and one such position in the "
-    "portfolio snapshot makes every DecisionRecord for the tenant unbuildable. Fix: widen the "
-    "lookahead to the contract's own OCC_SYMBOL_PATTERN body. Remove this marker when fixed.",
-)
 @pytest.mark.parametrize("root", ADJUSTED_OCC_ROOTS)
 def test_f27_an_adjusted_occ_symbol_must_survive_redaction(root: str) -> None:
     occ = occ_symbol_for(root, "call", "2026-09-25", "230.0")
@@ -251,13 +243,6 @@ def test_f27_an_adjusted_occ_symbol_must_survive_redaction(root: str) -> None:
     )
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="F-27 OPEN (HIGH, L0): one adjusted-option POSITION in the portfolio snapshot makes "
-    "every DecisionRecord for that tenant unbuildable - an availability outage far wider than "
-    "F-26's, because the portfolio snapshot is in the risk context of every decision, equity "
-    "decisions included. Remove this marker when F-27 is fixed.",
-)
 def test_f27_one_adjusted_option_position_must_not_stop_the_tenant_recording_anything() -> None:
     occ = occ_symbol_for("AKAM1", "call", "2026-09-25", "230.0")
     position = Position(
@@ -282,8 +267,14 @@ def test_f27_one_adjusted_option_position_must_not_stop_the_tenant_recording_any
     DecisionRecord.build(**redacted)
 
 
-def test_f27_the_failure_is_closed_not_silent() -> None:
-    """The one comfort: it refuses the append rather than persisting something wrong."""
+def test_f27_widening_the_lookahead_did_not_open_a_hole() -> None:
+    """The risk in fixing this was letting a real credential through, so that is what is checked.
+
+    F-27 was a redaction pattern matching too much. The obvious fix - relax the pattern - trades an
+    availability bug for a disclosure one, which is the worse direction. So this pins both halves at
+    once: an adjusted OCC symbol survives into the record, AND an Alpaca key id pasted into free text
+    in the SAME payload is still redacted.
+    """
     occ = occ_symbol_for("AKAM1", "call", "2026-09-25", "230.0")
     position = Position(
         symbol="AKAM1",
@@ -301,9 +292,20 @@ def test_f27_the_failure_is_closed_not_silent() -> None:
     )
     payload = record.model_dump(mode="json")
     payload.pop("audit_hash")
+    # Assembled at runtime on purpose: a literal of this shape in the source is itself a
+    # secret-scan hit, and the repository-wide scan is a control this suite must not have to
+    # be exempted from. Nothing here is a real credential.
+    fake_key_id = "PK" + "ZZTESTONLYNOTAREALKEY123"
+    payload["proposal"]["reasoning"] = f"rolling the AKAM1 calls; key {fake_key_id}"
     redacted = redact_for_persistence(payload)
-    with pytest.raises(Exception, match="occ_symbol"):
-        DecisionRecord.build(**redacted)
+
+    stored = redacted["risk_context"]["portfolio_snapshot"]["positions"][0]["occ_symbol"]
+    assert stored == occ, f"the adjusted position's OCC symbol was redacted to {stored!r}"
+    assert fake_key_id not in redacted["proposal"]["reasoning"], (
+        "widening the OCC lookahead must not let an Alpaca key id through"
+    )
+    assert "[REDACTED]" in redacted["proposal"]["reasoning"]
+    DecisionRecord.build(**redacted)
 
 
 def test_no_other_pattern_constrained_contract_value_collides_with_a_value_shape() -> None:

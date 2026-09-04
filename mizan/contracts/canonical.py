@@ -33,7 +33,7 @@ from typing import Any, Literal, Union, get_args, get_origin
 from pydantic import BaseModel
 
 from mizan import __version__
-from mizan.contracts.types import normalize_decimal_str
+from mizan.contracts.types import OCC_SYMBOL_PATTERN, normalize_decimal_str
 
 ZERO_HASH = "0" * 64
 ENGINE_VERSION = f"mizan-core/{__version__}"
@@ -82,6 +82,10 @@ SENSITIVE_KEY_PATTERNS: tuple[str, ...] = (
 # Key-based redaction cannot see these: every contract model is ``extra="forbid"``, so the only way a
 # credential reaches a record at all is pasted into a free-text field (``reasoning``, a broker message).
 # Each pattern replaces only the span it matched, so the surrounding prose stays auditable.
+# The OCC root exactly as the contract defines it, with the anchors and the date/strike tail
+# removed. Derived rather than re-typed, because the drift between two spellings WAS F-27.
+OCC_ROOT = OCC_SYMBOL_PATTERN.removeprefix("^").removesuffix(r"\d{6}[CP]\d{8}$")
+
 SENSITIVE_VALUE_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{12,}", re.IGNORECASE),
     re.compile(r"\bsk-ant-[A-Za-z0-9_-]{16,}"),
@@ -91,7 +95,14 @@ SENSITIVE_VALUE_PATTERNS: tuple[re.Pattern[str], ...] = (
     # "AKAM260925C00230000" (Akamai) and "PKG260925P00120000" (Packaging Corp) are instrument
     # identifiers, not credentials, and redacting one makes the record unbuildable - an outage for every
     # ticker beginning AK or PK. An OCC symbol is ROOT + YYMMDD + C/P + 8 digits; an API key is not.
-    re.compile(r"\b(?!(?:[A-Z]{1,6})\d{6}[CP]\d{8}\b)(?:PK|AK)[A-Z0-9]{16,}\b"),
+    #
+    # The root is spelled ONCE, in the contract, and reused here. It used to be re-spelled as
+    # `[A-Z]{1,6}` - letters only - so an ADJUSTED root carrying a numeric suffix (AKAM1 after a
+    # corporate action, PKG1) satisfied the contract, missed this lookahead, was redacted as a
+    # credential, and made every DecisionRecord for that tenant unbuildable (F-27). A wider
+    # outage than the one the lookahead exists to prevent, from the same cause as the original
+    # bug: one rule written down twice, drifting apart.
+    re.compile(rf"\b(?!(?:{OCC_ROOT})\d{{6}}[CP]\d{{8}}\b)(?:PK|AK)[A-Z0-9]{{16,}}\b"),
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
     re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}\b"),
