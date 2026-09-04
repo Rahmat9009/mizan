@@ -28,6 +28,7 @@ import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
+from weakref import WeakKeyDictionary
 
 from mizan import advisory as _advisory
 from mizan import authorization as _authorization
@@ -35,7 +36,7 @@ from mizan import governor as _governor
 from mizan import replay as _replay
 from mizan import risk as _risk
 from mizan.adapters import BrokerContextProvider
-from mizan.audit import InMemoryLedger
+from mizan.audit import InMemoryLedger, SqliteLedger
 from mizan.contracts import (
     AgentIdentity,
     DecisionRecord,
@@ -67,6 +68,38 @@ __all__ = ["EXECUTABLE_STATUSES", "Mizan", "authorized_proposal"]
 EXECUTABLE_STATUSES = frozenset({"SUBMITTED", "WOULD_SUBMIT", "RECONCILED_EXISTING"})
 
 
+
+# Single use belongs to the BOOK, not to the pipeline reading it. Two Mizan instances over one ledger
+# are two views of one set of authorizations, and giving each its own registry made "consumed once"
+# mean "consumed once per object" - so both consumed the same authorization and both submitted (F-28).
+# The registry is therefore derived from the ledger: same ledger, same registry, whoever is asking.
+_REGISTRIES: WeakKeyDictionary[object, _authorization.AuthorizationRegistry] = WeakKeyDictionary()
+_REGISTRY_LOCK = threading.Lock()
+
+
+def _registry_for(ledger: Ledger) -> _authorization.AuthorizationRegistry:
+    """The registry for this book, made once and shared by every pipeline that opens it."""
+    with _REGISTRY_LOCK:
+        existing = _REGISTRIES.get(ledger)
+        if existing is not None:
+            return existing
+        # A durable ledger gets a durable registry, keyed by path, so single use survives the process
+        # and holds across workers. An in-memory ledger cannot be shared beyond this interpreter in
+        # the first place, so a per-ledger in-memory registry is exactly as wide as the book it guards.
+        registry: _authorization.AuthorizationRegistry = (
+            _authorization.SqliteAuthorizationRegistry(
+                # A SUBDIRECTORY, because `<root>/<tenant>.sqlite` is a namespace and this file is
+                # not a tenant. Dropped in beside them it both broke every tool that globs the root
+                # for chains and would have collided with a tenant actually named "authorizations".
+                ledger.root_dir / "_registry" / "authorizations.sqlite"
+            )
+            if isinstance(ledger, SqliteLedger)
+            else _authorization.InMemoryAuthorizationRegistry()
+        )
+        _REGISTRIES[ledger] = registry
+        return registry
+
+
 class Mizan:
     """One tenant's governed pipeline, assembled from the lane components."""
 
@@ -82,6 +115,7 @@ class Mizan:
         kill_switch: KillSwitch | None = None,
         config: ExecutionConfig | None = None,
         clock: Callable[[], datetime] | None = None,
+        registry: _authorization.AuthorizationRegistry | None = None,
     ) -> None:
         self.tenant_id = tenant_id
         self.agent = agent
@@ -98,7 +132,11 @@ class Mizan:
         self.kill_switch: KillSwitch = kill_switch if kill_switch is not None else InMemoryKillSwitch()
         self.config = config if config is not None else ExecutionConfig()
         self.clock: Callable[[], datetime] = clock if clock is not None else _utc_now
-        self.registry = _authorization.InMemoryAuthorizationRegistry()
+        # Single use has to outlive the process, or it is not single use - two workers over one
+        # ledger each got their own in-memory set and each submitted (F-28). So when the ledger is
+        # durable the registry is too, beside it, DEFAULTING that way rather than requiring a caller
+        # to know to ask: the deployment that gets this wrong is the ordinary one.
+        self.registry = registry if registry is not None else _registry_for(self.ledger)
         self.context_provider: ContextProvider | None = (
             BrokerContextProvider(broker) if broker is not None else None
         )

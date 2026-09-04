@@ -33,8 +33,8 @@ from pydantic import ValidationError
 from mizan import authorization as authorization_module
 from mizan import governor, risk
 from mizan.adapters import BrokerContextProvider, MockBroker
-from mizan.authorization import InMemoryAuthorizationRegistry
-from mizan.audit import InMemoryLedger
+from mizan.authorization import InMemoryAuthorizationRegistry, SqliteAuthorizationRegistry
+from mizan.audit import InMemoryLedger, SqliteLedger
 from mizan.contracts import ExecutionAuthorization
 from mizan.contracts.errors import (
     AuthorizationError,
@@ -518,28 +518,75 @@ def test_protected_never_calls_the_wrapped_function_when_the_gate_refuses() -> N
 # ---------------------------------------------------------------------------------------------
 # FINDING F-28 - single use is process-local and the registry cannot be replaced
 # ---------------------------------------------------------------------------------------------
-def test_f28_the_authorization_registry_cannot_be_injected_into_mizan() -> None:
-    """The mechanism that makes single use true is hard-wired to an in-process implementation.
+def test_f28_the_authorization_registry_is_injectable_like_every_other_collaborator() -> None:
+    """The mechanism that makes single use true was the one collaborator a deployment could not supply.
 
-    ``AuthorizationRegistry`` is a Protocol, so a durable registry is expressible - but ``Mizan``
-    takes no argument for one and constructs ``InMemoryAuthorizationRegistry()`` itself, so no
-    deployment can supply one. Every other collaborator (broker, ledger, advisory, kill switch,
-    config, clock) is injectable; this one is not.
+    ``AuthorizationRegistry`` was already a Protocol, so a durable registry was expressible - but
+    ``Mizan`` took no argument for one and built ``InMemoryAuthorizationRegistry()`` itself. An
+    interface nobody can pass an implementation to is documentation, not a seam.
     """
     parameters = set(inspect.signature(Mizan.__init__).parameters)
-    assert "registry" not in parameters, (
-        "F-28 fixed: Mizan now accepts a registry - remove this test's xfail companion and "
-        "update security/findings.md"
+    assert {"broker", "ledger", "advisory", "kill_switch", "config", "clock", "registry"} <= parameters
+
+
+def test_f28_single_use_belongs_to_the_ledger_not_to_the_pipeline() -> None:
+    """Two pipelines over one book share one registry, because it is one book.
+
+    This is the property the race test depends on, pinned directly rather than inferred from a
+    threading outcome: a registry per Mizan instance made "consumed once" mean "consumed once per
+    object", which is not a constraint on anything.
+    """
+    policy = make_policy()
+    ledger = InMemoryLedger()
+    broker = MockBroker(
+        portfolio_snapshot=make_portfolio_snapshot(), market_snapshot=make_market_snapshot()
     )
-    assert {"broker", "ledger", "advisory", "kill_switch", "config", "clock"} <= parameters
+
+    def pipeline() -> Mizan:
+        return Mizan(
+            tenant_id=policy.tenant_id, agent=make_agent(), policy=policy, broker=broker,
+            ledger=ledger, config=ExecutionConfig(enabled=True, dry_run=False),
+            clock=lambda: FIXED_NOW,
+        )
+
+    assert pipeline().registry is pipeline().registry
+    assert Mizan(
+        tenant_id=policy.tenant_id, agent=make_agent(), policy=policy, broker=broker,
+        ledger=InMemoryLedger(), config=ExecutionConfig(enabled=True, dry_run=False),
+        clock=lambda: FIXED_NOW,
+    ).registry is not pipeline().registry, "a different book is a different set of authorizations"
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="F-28 OPEN (HIGH, L3): the single-use registry is per-Mizan-instance and cannot be "
-    "injected, so two instances over one ledger and one broker each consume the same "
-    "authorization and both submit. Remove this marker when F-28 is fixed.",
-)
+def test_f28_a_durable_ledger_gets_a_durable_registry_without_being_asked(tmp_path) -> None:
+    """The deployment that gets this wrong is the ordinary one, so the default has to be right.
+
+    A registry that only holds within a process is indistinguishable from a correct one until there
+    are two processes - by which point it is a duplicate order, not a test failure. So a SQLite
+    ledger produces a SQLite registry by default rather than on request, and single use is enforced
+    by a PRIMARY KEY that no amount of simultaneity can race.
+    """
+    policy = make_policy()
+    ledger = SqliteLedger(root_dir=tmp_path)
+    broker = MockBroker(
+        portfolio_snapshot=make_portfolio_snapshot(), market_snapshot=make_market_snapshot()
+    )
+    instance = Mizan(
+        tenant_id=policy.tenant_id, agent=make_agent(), policy=policy, broker=broker,
+        ledger=ledger, config=ExecutionConfig(enabled=True, dry_run=False), clock=lambda: FIXED_NOW,
+    )
+
+    assert isinstance(instance.registry, SqliteAuthorizationRegistry)
+    assert instance.registry.consume("auth-1") is True
+    assert instance.registry.consume("auth-1") is False
+
+    # A SEPARATE registry object over the same file - which is what another worker holds - agrees.
+    # Deliberately naming the path the SDK chose: the registry lives in a subdirectory, not beside
+    # the per-tenant chains, because <root>/<tenant>.sqlite is a namespace this file is not part of.
+    elsewhere = SqliteAuthorizationRegistry(tmp_path / "_registry" / "authorizations.sqlite")
+    assert elsewhere.was_consumed("auth-1") is True
+    assert elsewhere.consume("auth-1") is False
+
+
 def test_f28_two_pipelines_over_one_ledger_must_not_submit_one_authorization_twice() -> None:
     policy = make_policy()
     ledger = InMemoryLedger()
@@ -594,12 +641,16 @@ def test_f28_two_pipelines_over_one_ledger_must_not_submit_one_authorization_twi
 
 
 def test_f28_the_broker_idempotency_read_is_the_only_remaining_defence() -> None:
-    """The non-racing half of F-28, pinned as the behaviour it actually is today.
+    """The non-racing half of F-28: sequentially, the second attempt is refused by US.
 
-    Sequentially, a second ``Mizan`` DOES re-consume the authorization; nothing but the broker's
-    memory of the client order id stops a second order. That is precisely the posture F-9 faulted
-    the legacy build for ("duplicate suppression is delegated entirely to Alpaca"), so it is pinned
-    here rather than left as a comment.
+    It used to be refused by Alpaca. A second ``Mizan`` re-consumed the authorization and submitted,
+    and only the broker's memory of the client order id prevented a duplicate - precisely the posture
+    F-9 faulted the legacy build for ("duplicate suppression is delegated entirely to Alpaca").
+
+    Now the registry follows the ledger, so the second pipeline sees the authorization already
+    consumed and reconciles instead of submitting. The broker's idempotency is still there and is
+    still worth having; it is no longer the only thing standing between one authorization and two
+    orders.
     """
     policy = make_policy()
     ledger = InMemoryLedger()
@@ -621,7 +672,9 @@ def test_f28_the_broker_idempotency_read_is_the_only_remaining_defence() -> None
     first, second = pipeline(), pipeline()
     record = first.evaluate(make_proposal())
     assert first.execute(record.decision_id).status == "SUBMITTED"
-    assert second.registry.was_consumed(record.authorization.auth_id) is False
+    assert second.registry.was_consumed(record.authorization.auth_id) is True, (
+        "the second pipeline must see the authorization as already spent"
+    )
     replay = second.execute(record.decision_id)
     assert replay.status == "RECONCILED_EXISTING"
     assert len(broker.submitted) == 1

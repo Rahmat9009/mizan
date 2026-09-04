@@ -12,8 +12,10 @@ has drifted from the decision that justified it cannot validate.
 
 from __future__ import annotations
 
+import sqlite3
 import threading
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from mizan.contracts import (
@@ -41,6 +43,7 @@ from mizan.contracts.execution_authorization import TTL_MAX_SECONDS, TTL_MIN_SEC
 __all__ = [
     "AuthorizationRegistry",
     "InMemoryAuthorizationRegistry",
+    "SqliteAuthorizationRegistry",
     "issue",
     "validate",
 ]
@@ -314,3 +317,61 @@ class InMemoryAuthorizationRegistry:
     def was_consumed(self, auth_id: str) -> bool:
         with self._lock:
             return auth_id in self._consumed
+
+
+SQLITE_BUSY_TIMEOUT_SECONDS = 30
+
+
+class SqliteAuthorizationRegistry:
+    """Single use across PROCESSES, not merely across threads.
+
+    The in-memory registry above is atomic within one interpreter and says nothing at all about a
+    second one. Two workers over the same ledger and the same broker - the ordinary way anything is
+    deployed - each held their own set, each was the first to consume the authorization, and each
+    submitted. Single use was a property of a process rather than of the authorization (F-28), and the
+    only thing standing between that and a duplicate order was the broker remembering a client order
+    id, which is exactly the posture this build faulted the legacy one for.
+
+    So the test-and-set moves to durable storage, where a PRIMARY KEY does the work: the second INSERT
+    of an auth_id raises IntegrityError no matter which process attempts it, or how simultaneously.
+    The database enforces it, so there is no window between checking and writing for a racing caller
+    to slip through - that window is what a check-then-write in application code always leaves open.
+
+    Only the auth_id is stored. Recording a consumption TIME here would put a wall clock in the
+    authorization module, and when a decision happened is the ledger's job, not this table's.
+    """
+
+    def __init__(self, path: Path) -> None:
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self._connect() as connection:
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS consumed_authorizations (auth_id TEXT PRIMARY KEY)"
+            )
+
+    def _connect(self) -> sqlite3.Connection:
+        # A generous timeout because the contended case is the whole point: a second worker arriving
+        # mid-write should WAIT for the answer, not fail and be retried into a second submission.
+        # Integer seconds: a float literal anywhere in this module is a Hard Rule A6 violation, and
+        # INV-15 walks the AST of exactly this path. It caught the first version of this line.
+        connection = sqlite3.connect(self.path, timeout=SQLITE_BUSY_TIMEOUT_SECONDS)
+        connection.execute("PRAGMA journal_mode=WAL")
+        return connection
+
+    def consume(self, auth_id: str) -> bool:
+        """True for exactly one caller per ``auth_id``, across every process sharing this file."""
+        try:
+            with self._connect() as connection:
+                connection.execute(
+                    "INSERT INTO consumed_authorizations (auth_id) VALUES (?)", (auth_id,)
+                )
+        except sqlite3.IntegrityError:
+            return False
+        return True
+
+    def was_consumed(self, auth_id: str) -> bool:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT 1 FROM consumed_authorizations WHERE auth_id = ?", (auth_id,)
+            ).fetchone()
+        return row is not None
