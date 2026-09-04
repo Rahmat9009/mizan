@@ -5,14 +5,14 @@ Everything Mizan claims, with the command that proves it and the output that com
 **Every command on this page was run before it was printed.** Where a claim could not be verified
 from this machine, it says so in the same sentence as the claim, rather than in a footnote.
 
-Verified at commit **`7542a18`** (engine `mizan-core/0.2.0`), Python 3.12.4, Windows 11, on
+Verified at commit **`e5482e0`** (engine `mizan-core/0.3.0`), Python 3.12.4, Windows 11, on
 **2026-09-03**. Re-run anything here and compare; that is the point of the page.
 
 ```
 account under test   5b61edf2-7440-4d4a-9c5a-186a4f262ab0   (Alpaca paper)
 governed decisions   12, hash-chained, one tenant
 chain                12/12 links verified offline, under a LATER engine than wrote them
-replay               4/4 reproduced identically, credential-free | engine d5f5a5e8
+replay               4/4 reproduced identically, credential-free | engine 0a6f11cb
                      (the live 12 replay 12/12 at tag engine-0.1.0, which wrote them)
 invariants           PASS=26  BLOCKING=0  (of 26)
 real orders placed   5, all multi-leg (mleg), all traceable to a recorded APPROVE
@@ -66,9 +66,14 @@ Both are fixed in `7542a18`, and neither fix loosens a check:
 * **`engine-versions.json` + `tests/replay/test_engine_version_moves_with_behaviour.py`** - each
   published engine version is pinned to the determinism fingerprint it decides with, and the test
   fails if the running engine does not decide the way its version promises. Verified that it can
-  fail: re-pin `0.2.0` to a wrong fingerprint and two tests go red. There are exactly two honest ways
+  fail: re-pin `0.3.0` to a wrong fingerprint and two tests go red. There are exactly two honest ways
   to make it pass - revert the behaviour change, or publish a new version. Re-pinning an existing one
   rewrites what every record already written under it was promised.
+  It has since done its job on a real change rather than a synthetic one: closing F-30 altered
+  what four checks do with every short, the control failed, and the engine went to `0.3.0`. It
+  needed a fix of its own first - none of the fingerprint's five scenarios contained a sell leg,
+  so the change did not move it. A behavioural fingerprint blind to one side of the market is
+  not measuring behaviour; there is an `opening_short` scenario now.
 
 Two properties of the system are worth naming, because both did their job:
 
@@ -123,7 +128,7 @@ Mizan audit chain - offline verification
   tenant    : tenant-a
   links     : 12 (12 decision record(s), 0 control event(s))
   sequence  : 1 .. 12
-  verifier  : mizan-core/0.2.0 (offline; no network, no credentials, read-only)
+  verifier  : mizan-core/0.3.0 (offline; no network, no credentials, read-only)
 
   RESULT: CHAIN VERIFIED
   Every audit_hash recomputes from the record's own content and every record links to
@@ -145,10 +150,10 @@ python -m mizan.replay --ledger ./evidence/ledger
 ```
 
 ```console
-4/4 decisions reproduced identically | engine d5f5a5e8
+4/4 decisions reproduced identically | engine 0a6f11cb
 RESULT: IDENTICAL
 
-  4/4 decisions reproduce bit-for-bit from the record via one credential-free command (engine d5f5a5e8).
+  4/4 decisions reproduce bit-for-bit from the record via one credential-free command (engine 0a6f11cb).
 [exit 0]
 ```
 
@@ -158,18 +163,18 @@ enough: a changed reason code or a changed authorised quantity would slip past i
 covers those too. Two of the four are refusals, which is the half that matters: the *reason* a trade
 was refused is reproducible, not merely the fact of it.
 
-The twelve live records were written by engine `0.1.0`, and this build is `0.2.0`. Replayed here they
+The twelve live records were written by engine `0.1.0`, and this build is `0.3.0`. Replayed here they
 report `0/12` beside a chain that verifies perfectly - which is the tool being accurate, not evasive:
 
 ```console
-0/12 decisions reproduced identically | engine d5f5a5e8
+0/12 decisions reproduced identically | engine 0a6f11cb
 ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision replay
-ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the same engine
+ran on mizan-core/0.3.0. Hard Rule A1 guarantees an identical verdict only for the same engine
 version, so a match here is not proof and a difference is not necessarily a defect - it is a
 version comparison.
 ```
 
-`0.2.0` adds the `expected_value` check and so genuinely decides differently. The verdicts still come
+`0.3.0` adds the `expected_value` check and closes F-30, so it genuinely decides differently. The verdicts still come
 out `APPROVE -> APPROVE` and `REJECT -> REJECT`; `verdict_hash` covers the check set, so the hashes
 move. Against the engine that wrote them, they match exactly:
 
@@ -192,13 +197,13 @@ python scripts/determinism_fingerprint.py --check determinism-reference.json
 ```
 
 ```console
-MATCH d5f5a5e8fa46093f3bd94d816853e233a2eddb7137f1563ea62f22a83245afeb
+MATCH 0a6f11cb2626ffd2c5d061b4299305e49a631459389ac1038eea44cc81542ca2
 [exit 0]
 ```
 
-`d5f5a5e8` is the short form quoted in the replay headline. The reference file was written earlier
+`0a6f11cb` is the short form quoted in the replay headline. The reference file was written earlier
 and is committed, so this compares the engine's behaviour **across processes and across time**, not
-against itself. `engine-versions.json` pins it to `mizan-core/0.2.0`, and a test fails if the
+against itself. `engine-versions.json` pins it to `mizan-core/0.3.0`, and a test fails if the
 running engine stops deciding the way its version promises.
 
 ### Claim — what the 12 decisions actually are
@@ -582,7 +587,7 @@ ALL SECTIONS PASSED
 ```
 
 Note the last check: it passes on a **non-zero** replay exit. That is deliberate. The twelve shipped
-records were decided by engine `0.1.0` and this build is `0.2.0`, so the replay genuinely differs and
+records were decided by engine `0.1.0` and this build is `0.3.0`, so the replay genuinely differs and
 genuinely exits `1`. What the demo asserts is the property that actually matters - that every one of
 those differences is attributed to the engine version by name, rather than reported as tampering. A
 demo that asserted `12/12` regardless would have to be kept green by holding the version still, which
@@ -612,7 +617,7 @@ python -m mizan.replay --ledger ./evidence/ledger
            codes: HARD_REJECTION_UPHELD, NAKED_SHORT_NOT_PERMITTED
 chain: ok=True length=4
 
-4/4 decisions reproduced identically | engine d5f5a5e8
+4/4 decisions reproduced identically | engine 0a6f11cb
 RESULT: IDENTICAL
 ```
 

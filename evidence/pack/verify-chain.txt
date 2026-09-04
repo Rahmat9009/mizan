@@ -5,11 +5,16 @@ Mizan audit chain - offline verification
   tenant    : tenant-a
   links     : 12 (12 decision record(s), 0 control event(s))
   sequence  : 1 .. 12
-  verifier  : mizan-core/0.2.0 (offline; no network, no credentials, read-only)
+  verifier  : mizan-core/0.3.0 (offline; no network, no credentials, read-only)
 
   RESULT: CHAIN VERIFIED
   Every audit_hash recomputes from the record's own content and every record links to
   its predecessor. 12 record(s) verified.
+
+  head      : sequence 12, 34a9ec303577a4c63a8001a009b35a115f9da9ffd1a157761f0ad05ed5ae4af8
+  Keep that head. A chain proves its records are consistent with each other; it
+  cannot prove they are ALL of them, because deleting the last few takes the
+  evidence they existed with them. Re-run with --expect-head to detect that.
 
 $ python -m mizan.audit.verify_chain evidence/pack/audit-trail-tenant-a.jsonl
 Mizan audit chain - offline verification
@@ -18,9 +23,14 @@ Mizan audit chain - offline verification
   tenant    : tenant-a
   links     : 12 (12 decision record(s), 0 control event(s))
   sequence  : 1 .. 12
-  verifier  : mizan-core/0.2.0 (offline; no network, no credentials, read-only)
+  verifier  : mizan-core/0.3.0 (offline; no network, no credentials, read-only)
 
   RESULT: CHAIN VERIFIED
   Every audit_hash recomputes from the record's own content and every record links to
   its predecessor. 12 record(s) verified.
+
+  head      : sequence 12, 34a9ec303577a4c63a8001a009b35a115f9da9ffd1a157761f0ad05ed5ae4af8
+  Keep that head. A chain proves its records are consistent with each other; it
+  cannot prove they are ALL of them, because deleting the last few takes the
+  evidence they existed with them. Re-run with --expect-head to detect that.
 

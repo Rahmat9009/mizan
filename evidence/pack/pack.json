@@ -20,7 +20,7 @@
     "links": 12,
     "verdicts": "6 APPROVE, 6 REJECT"
   },
-  "engine_version": "mizan-core/0.2.0",
+  "engine_version": "mizan-core/0.3.0",
   "files": [
     "SUMMARY.md",
     "audit-trail-tenant-a.jsonl",
@@ -30,9 +30,10 @@
     "summary-20260903T201147Z.md",
     "summary-20260903T201802Z.md",
     "summary-20260903T222021Z.md",
+    "summary-20260904T001749Z.md",
     "verify-chain.txt"
   ],
-  "generated_at": "2026-09-03T22:20:21Z",
+  "generated_at": "2026-09-04T00:17:49Z",
   "ledger": "evidence/live-ledger",
   "pnl": "-50.55",
   "pnl_words": "a LOSS",
@@ -248,7 +249,7 @@
     "differing": 12,
     "engine_changed": true,
     "exit_code": 1,
-    "headline": "0/12 decisions reproduced identically | engine d5f5a5e8",
+    "headline": "0/12 decisions reproduced identically | engine 0a6f11cb",
     "ok": false,
     "verdict": "ENGINE CHANGED",
     "version_explained": 12
@@ -274,5 +275,5 @@
     ]
   },
   "window_from": "2026-09-03T19:13:23Z",
-  "window_words": "3 hours 6 minutes"
+  "window_words": "5 hours 4 minutes"
 }

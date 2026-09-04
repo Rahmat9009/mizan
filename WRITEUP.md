@@ -79,7 +79,7 @@ python -m mizan.replay --ledger ./evidence/ledger
 ```
 
 ```
-4/4 decisions reproduced identically | engine d5f5a5e8
+4/4 decisions reproduced identically | engine 0a6f11cb
 RESULT: IDENTICAL
 ```
 
@@ -98,7 +98,7 @@ python -m mizan.audit.verify_chain evidence/live-ledger/tenant-a.sqlite
 
 ```
   links     : 12 (12 decision record(s), 0 control event(s))
-  verifier  : mizan-core/0.2.0 (offline; no network, no credentials, read-only)
+  verifier  : mizan-core/0.3.0 (offline; no network, no credentials, read-only)
 
   RESULT: CHAIN VERIFIED
   Every audit_hash recomputes from the record's own content and every record links to
@@ -109,7 +109,7 @@ python -m mizan.audit.verify_chain evidence/live-ledger/tenant-a.sqlite
 
 ```bash
 python scripts/determinism_fingerprint.py --check determinism-reference.json
-#   MATCH d5f5a5e8fa46093f3bd94d816853e233a2eddb7137f1563ea62f22a83245afeb
+#   MATCH 0a6f11cb2626ffd2c5d061b4299305e49a631459389ac1038eea44cc81542ca2
 
 python -m pytest -q -p no:cacheprovider tests/invariants
 #   INVARIANT TOTALS: PASS=26 PENDING-IMPL=0 BLOCKING=0 NOT-RUN=0 (of 26)
@@ -126,15 +126,15 @@ Replay the twelve live records under **this** engine and you get `0/12`, beside 
 perfectly. That is not a hedge; it is the system reporting something true:
 
 ```
-0/12 decisions reproduced identically | engine d5f5a5e8
+0/12 decisions reproduced identically | engine 0a6f11cb
 ENGINE VERSION MISMATCH: the record was written by mizan-core/0.1.0 and this decision
-replay ran on mizan-core/0.2.0. Hard Rule A1 guarantees an identical verdict only for the
+replay ran on mizan-core/0.3.0. Hard Rule A1 guarantees an identical verdict only for the
 same engine version, so a match here is not proof and a difference is not necessarily a
 defect - it is a version comparison.
 ```
 
-Those twelve were decided by engine `0.1.0`. This build is `0.2.0`, which adds the `expected_value`
-check and therefore genuinely decides differently — the verdicts still come out `APPROVE → APPROVE`
+Those twelve were decided by engine `0.1.0`. This build is `0.3.0`, which adds the `expected_value`
+check and changed how four capital checks treat a short (F-30), so it genuinely decides differently — the verdicts still come out `APPROVE → APPROVE`
 and `REJECT → REJECT`, but `verdict_hash` covers the check set, so the hashes move. Replay them
 against the engine that wrote them and they match:
 

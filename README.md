@@ -45,7 +45,7 @@ python -m pip install -e ".[dev]"
 # the central claim: build a ledger from nothing, then re-derive every decision in it
 python examples/seed_ledger.py --out ./evidence/ledger
 python -m mizan.replay --ledger ./evidence/ledger --assert-identical
-#   4/4 decisions reproduced identically | engine d5f5a5e8         (exit 0)
+#   4/4 decisions reproduced identically | engine 0a6f11cb         (exit 0)
 
 # and the 12 real governed decisions shipped here have not been altered
 python -m mizan.audit.verify_chain evidence/live-ledger/tenant-a.sqlite
@@ -58,7 +58,7 @@ python -m pytest -q -p no:cacheprovider tests/invariants
 
 # the decision path is byte-identical to the committed reference
 python scripts/determinism_fingerprint.py --check determinism-reference.json
-#   MATCH d5f5a5e8fa46093f3bd94d816853e233a2eddb7137f1563ea62f22a83245afeb
+#   MATCH 0a6f11cb2626ffd2c5d061b4299305e49a631459389ac1038eea44cc81542ca2
 ```
 
 CI re-checks that fingerprint on **3 operating systems × 2 Python versions** (Linux, macOS, Windows;
