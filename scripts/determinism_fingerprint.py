@@ -40,8 +40,17 @@ def _scenarios() -> list[tuple[str, Any, Any, Any]]:
     """Fixed scenarios spanning the paths where nondeterminism actually hides.
 
     Chosen for what each one stresses, not for coverage theatre: free-text handling, Decimal
-    arithmetic and rounding, dict iteration over the exposure maps, the drawdown ladder, and the
-    multi-leg option path.
+    arithmetic and rounding, dict iteration over the exposure maps, the drawdown ladder, the
+    multi-leg option path, and the SELL side.
+
+    That last one was added after this fingerprint failed to notice a real behaviour change. Fixing
+    F-30 altered what four capital checks do with every short, and the fingerprint still MATCHED,
+    because not one of the five scenarios contained a sell leg. A behavioural fingerprint blind to an
+    entire side of the market is not measuring behaviour, and worse, the engine-version control that
+    depends on it would have let the change ship without a version bump.
+
+    The lesson generalises past this one gap: a fingerprint is only evidence about the shapes it
+    covers, so a new class of proposal belongs here at the same time as the code that handles it.
     """
     from tests.fixtures import (
         injection_reasoning,
@@ -74,6 +83,29 @@ def _scenarios() -> list[tuple[str, Any, Any, Any]]:
         (
             "injected_free_text",
             make_proposal(reasoning=injection_reasoning()),
+            baseline,
+            policy,
+        ),
+        (
+            # An OPENING short against a book that holds nothing to offset it - the shape whose
+            # capital treatment F-30 was about, and the one no other scenario reaches.
+            "opening_short",
+            make_proposal(
+                intent="open",
+                strategy="long_equity",
+                legs=[
+                    {
+                        "leg_index": 0,
+                        "side": "sell",
+                        "contract_type": None,
+                        "strike": None,
+                        "expiry": None,
+                        "quantity": "10",
+                        "limit_price": "228.50",
+                        "order_type": "limit",
+                    }
+                ],
+            ),
             baseline,
             policy,
         ),

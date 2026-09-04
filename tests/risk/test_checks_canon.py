@@ -139,9 +139,26 @@ def test_closing_a_position_is_exempt_from_levels_one_to_three(institutional_con
 def test_an_adjustment_that_lowers_exposure_is_not_scaled_by_the_ladder(
     institutional_context_for, check_of
 ):
-    """Levels 1-3 restrain NEW risk (Addendum 1 C); an adjust that reduces exposure adds none."""
+    """Levels 1-3 restrain NEW risk (Addendum 1 C); an adjust that reduces exposure adds none.
+
+    The book has to actually HOLD the position for selling it to reduce anything. It did not before -
+    the fixture held only MSFT - so this sold AAPL short and passed anyway, on the reasoning that a
+    sale brings cash in. That reasoning was F-30, and the test was resting on it.
+    """
     policy = make_institutional_policy()
-    context = institutional_context_for(policy, response_level=2)
+    context = institutional_context_for(
+        policy,
+        response_level=2,
+        portfolio_snapshot=make_portfolio_snapshot(
+            positions=[
+                {
+                    "symbol": "AAPL", "asset_class": "equity", "quantity": "40",
+                    "market_value": "9140", "sector": "Technology", "occ_symbol": None,
+                    "delta": "40", "gamma": "0", "vega": "0",
+                }
+            ]
+        ),
+    )
     reducing = make_proposal(
         intent="adjust",
         invalidation=INVALIDATION,

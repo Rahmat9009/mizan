@@ -260,7 +260,7 @@ def is_risk_increasing(proposal: TradeProposal, context: RiskContext) -> bool:
         return True
     if proposal.intent == CLOSE_INTENT:
         return False
-    return exposure_of(proposal, context).change > ZERO
+    return exposure_of(proposal, context).increases_risk
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -537,7 +537,7 @@ def buying_power_sufficiency(
             exposure.missing_code or ReasonCode.PRICE_MISSING,
             "the order cannot be valued without a market price",
         )
-    if exposure.change <= ZERO:
+    if exposure.opening <= ZERO:
         return ok(
             "buying_power_sufficiency",
             policy,
@@ -554,18 +554,18 @@ def buying_power_sufficiency(
             snapshot_ts=portfolio.as_of,
         )
     available = dec(portfolio.buying_power)
-    if exposure.change > available:
+    if exposure.opening > available:
         return fail(
             "buying_power_sufficiency",
             policy,
             ReasonCode.INSUFFICIENT_BUYING_POWER,
             threshold=available,
-            actual=exposure.change,
+            actual=exposure.opening,
             cap=cap_from_budget(available, exposure.unit_gross),
             source=portfolio.source,
             snapshot_ts=portfolio.as_of,
             detail=(
-                f"the order requires {dstr(exposure.change)} at market against buying power "
+                f"the order requires {dstr(exposure.opening)} at market against buying power "
                 f"{portfolio.buying_power}"
             ),
         )
@@ -573,7 +573,7 @@ def buying_power_sufficiency(
         "buying_power_sufficiency",
         policy,
         threshold=available,
-        actual=exposure.change,
+        actual=exposure.opening,
         source=portfolio.source,
         snapshot_ts=portfolio.as_of,
     )
@@ -594,7 +594,7 @@ def buying_power_utilization(
             exposure.missing_code or ReasonCode.PRICE_MISSING,
             "the order cannot be valued without a market price",
         )
-    if exposure.change <= ZERO:
+    if exposure.opening <= ZERO:
         return ok("buying_power_utilization", policy, detail="the order does not consume buying power")
     if portfolio.buying_power is None:
         return missing(
@@ -606,7 +606,7 @@ def buying_power_utilization(
         )
     available = dec(portfolio.buying_power)
     limit = dec(policy.portfolio.max_buying_power_utilization)
-    utilization = _pct(exposure.change, available)
+    utilization = _pct(exposure.opening, available)
     if utilization is None:
         return fail(
             "buying_power_utilization",
@@ -661,7 +661,7 @@ def concentration_limit(proposal: TradeProposal, context: RiskContext, policy: P
     equity = dec(portfolio.equity)
     limit = dec(policy.portfolio.max_single_symbol_pct)
     held = symbol_exposure(portfolio, proposal.symbol)
-    projected = add(held, exposure.change)
+    projected = abs(add(held, exposure.change))
     share = _pct(projected, equity)
     if share is not None and share > limit:
         room = subtract(multiply(equity, limit), held)
@@ -719,7 +719,7 @@ def sector_concentration(proposal: TradeProposal, context: RiskContext, policy: 
     equity = dec(portfolio.equity)
     limit = dec(limit_str)
     held = sector_exposure(portfolio, context.market_snapshot, sector)
-    share = _pct(add(held, exposure.change), equity)
+    share = _pct(abs(add(held, exposure.change)), equity)
     if share is not None and share > limit:
         room = subtract(multiply(equity, limit), held)
         return fail(
@@ -1419,7 +1419,7 @@ def aggregate_exposure(proposal: TradeProposal, context: RiskContext, policy: Po
         return ok("aggregate_exposure", policy, detail="the order does not increase book exposure")
     held = dec(state.gross_exposure)
     limit = dec(aggregate.max_portfolio_exposure_pct)
-    share = _pct(add(held, exposure.change), equity)
+    share = _pct(abs(add(held, exposure.change)), equity)
     if share is not None and share > limit:
         room = subtract(multiply(equity, limit), held)
         return fail(
@@ -1513,7 +1513,7 @@ def _concentration_by_bucket(
     worst_held = ZERO
     for key in sorted(keys):
         held = dec(buckets.get(key, "0"))
-        share = _pct(add(held, exposure.change), equity)
+        share = _pct(abs(add(held, exposure.change)), equity)
         if share is not None and (worst_share is None or share > worst_share):
             worst_share, worst_key, worst_held = share, key, held
     if worst_share is not None and worst_share > limit:
@@ -1831,7 +1831,7 @@ def _overnight_exposure(
         return missing(
             "session_window", ReasonCode.PORTFOLIO_STATE_MISSING, "no portfolio exposure"
         )
-    share = _pct(add(held, exposure.change), equity)
+    share = _pct(abs(add(held, exposure.change)), equity)
     if share is not None and share > limit:
         room = subtract(multiply(equity, limit), held)
         return fail(

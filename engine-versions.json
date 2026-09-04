@@ -9,7 +9,11 @@
     },
     "mizan-core/0.2.0": {
       "fingerprint": "d5f5a5e8fa46093f",
-      "note": "27 checks: adds expected_value, which refuses a spread whose credit-to-width implies negative expectancy."
+      "note": "27 checks. Superseded by 0.3.0. Its capital checks self-disabled on any short (F-30)."
+    },
+    "mizan-core/0.3.0": {
+      "fingerprint": "0a6f11cb2626ffd2",
+      "note": "F-30 closed: buying_power_sufficiency, buying_power_utilization, concentration_limit and sector_concentration now measure the OPENING exposure of an order rather than the sign of its cash flow, so an opening short is no longer invisible to all four. The fingerprint also gained an opening_short scenario, without which this change would not have moved it."
     }
   }
 }

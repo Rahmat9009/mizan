@@ -164,6 +164,20 @@ class Exposure:
     change: Decimal
     unit_gross: Decimal
     missing_code: ReasonCode | None = None
+    opening: Decimal = ZERO
+    """Market value of the part of this order that INCREASES a position, net of what it offsets.
+
+    ``change`` is a signed cash flow and is the wrong question to ask about capital. Selling to open
+    receives cash, so ``change`` is negative, and every check that asked "is change positive?" as a
+    proxy for "does this consume capital?" concluded that a naked short consumes none - which switched
+    off buying-power sufficiency, buying-power utilisation, concentration and sector concentration all
+    at once, on the single riskiest shape a proposal can have (F-30).
+
+    A short receives cash AND consumes margin; the two are not alternatives. So capital is measured by
+    what the order OPENS: quantity that increases the absolute size of the position it touches, with
+    quantity that offsets an existing holding excluded because closing genuinely frees capital. A
+    proposal that flips through flat counts only the part that comes out the other side.
+    """
 
     @property
     def priced(self) -> bool:
@@ -171,7 +185,29 @@ class Exposure:
 
     @property
     def increases_risk(self) -> bool:
-        return self.change > ZERO
+        """Whether the order adds exposure - by magnitude, not by direction of cash."""
+        return self.opening > ZERO
+
+
+def held_quantities(portfolio: PortfolioSnapshot | None) -> dict[str, Decimal]:
+    """Signed quantity per instrument, keyed the way a leg identifies itself."""
+    quantities: dict[str, Decimal] = {}
+    if portfolio is None:
+        return quantities
+    for position in portfolio.positions:
+        key = position.occ_symbol or position.symbol
+        quantities[key] = add(quantities.get(key, ZERO), dec(position.quantity))
+    return quantities
+
+
+def opening_quantity(held: Decimal, proposed: Decimal) -> Decimal:
+    """How much of ``proposed`` increases ``|held|`` rather than reducing it. Both signed."""
+    if proposed == ZERO:
+        return ZERO
+    if held == ZERO or (held > ZERO) == (proposed > ZERO):
+        return abs(proposed)
+    # Opposite directions: the overlap closes, and anything beyond it opens on the other side.
+    return max(ZERO, abs(proposed) - abs(held))
 
 
 def exposure_of(proposal: TradeProposal, context: RiskContext) -> Exposure:
@@ -180,17 +216,39 @@ def exposure_of(proposal: TradeProposal, context: RiskContext) -> Exposure:
     if market is None:
         return Exposure(ZERO, ZERO, ZERO, ReasonCode.MARKET_DATA_MISSING)
     multiplier = leg_multiplier(proposal)
+    held = held_quantities(context.portfolio_snapshot)
+    # Addendum 1 C: a close never increases risk, and the engine already says so in
+    # `is_risk_increasing`. Measuring a close against the portfolio instead would make one that the
+    # snapshot cannot corroborate - a partial snapshot, a position held elsewhere - read as an opening
+    # short and get scaled to zero, which strands the exit. A close MISLABELLED to smuggle a short in
+    # is caught by shape rather than by capital: `structure_valid` and the naked-short check refuse
+    # the structure whatever the intent field claims.
+    closing_out = proposal.intent == "close"
     gross = ZERO
     change = ZERO
+    opening = ZERO
     for leg in proposal.legs:
         price = leg_reference_price(proposal, leg, market)
         if price is None:
             return Exposure(ZERO, ZERO, ZERO, ReasonCode.PRICE_MISSING)
         value = multiply(multiply(dec(leg.quantity), price), multiplier)
         gross = add(gross, value)
-        change = add(change, multiply(multiply(signed_quantity(leg), price), multiplier))
+        signed = signed_quantity(leg)
+        change = add(change, multiply(multiply(signed, price), multiplier))
+        # An option leg is identified by its contract; an equity leg by its symbol. Asking a leg for
+        # an OCC symbol it cannot have raises, so the asset class decides, not a try.
+        key = (
+            leg.occ_symbol(proposal.symbol)
+            if proposal.asset_class == "equity_option"
+            else proposal.symbol
+        )
+        current = held.get(key, ZERO)
+        added = ZERO if closing_out else opening_quantity(current, signed)
+        opening = add(opening, multiply(multiply(added, price), multiplier))
+        # Later legs see what earlier legs did, so a spread that closes then reopens is measured once.
+        held[key] = add(current, signed)
     unit = divide(gross, proposal.total_quantity)
-    return Exposure(gross, change, ZERO if unit is None else unit)
+    return Exposure(gross, change, ZERO if unit is None else unit, opening=opening)
 
 
 # ----------------------------------------------------------------------------------------------------

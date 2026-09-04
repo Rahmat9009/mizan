@@ -7,8 +7,8 @@
       "pyyaml": "6.0.2"
     }
   },
-  "engine_version": "mizan-core/0.2.0",
-  "fingerprint": "d5f5a5e8fa46093f3bd94d816853e233a2eddb7137f1563ea62f22a83245afeb",
+  "engine_version": "mizan-core/0.3.0",
+  "fingerprint": "0a6f11cb2626ffd2c5d061b4299305e49a631459389ac1038eea44cc81542ca2",
   "scenarios": [
     {
       "authorized_total_quantity": "10",
@@ -110,13 +110,13 @@
       ],
       "decision_reason_codes": [],
       "decision_verdict": "APPROVE",
-      "evaluation_id": "4051770295f29bfdad16d3c4c8122f51c4daf4ada14e4434951ec93cacc41ac8",
+      "evaluation_id": "ba66bfaafab9de0cc4b6faf3badfe3b2868968be4579e6bf7ada88ce71f3d270",
       "evaluation_reason_codes": [],
       "evaluation_recommended_quantity": "10",
       "evaluation_verdict": "PASS",
       "policy_hash": "5a209f4a478f6a06e50676c35228564101646b93226fc35ed04405908e319b09",
       "scenario": "pass_baseline",
-      "verdict_hash": "4be899ca52c0b8834fb1c153b1a62e1f41ae407eb09c4c9a3043123e0031baf6"
+      "verdict_hash": "4204cb7a7bdd39550bb292547333b50cd20ef8c0332dd3f07cd3b265aaf0b233"
     },
     {
       "authorized_total_quantity": "5",
@@ -220,7 +220,7 @@
         "SIZE_SCALED_BY_DRAWDOWN"
       ],
       "decision_verdict": "REDUCE",
-      "evaluation_id": "18da1441aecffe04ed73572a12444d29fe37a371157d12b6a0c0293510e2fb0d",
+      "evaluation_id": "90b464ce67c6c5736a54b853e86d98eca069be5458ebab0d73498bb1198a9c18",
       "evaluation_reason_codes": [
         "SIZE_SCALED_BY_DRAWDOWN"
       ],
@@ -228,7 +228,7 @@
       "evaluation_verdict": "REDUCE",
       "policy_hash": "5a209f4a478f6a06e50676c35228564101646b93226fc35ed04405908e319b09",
       "scenario": "reduce_by_drawdown",
-      "verdict_hash": "8e1a96966a2a9b04e5cb8052c1e7c274d58592846ef19e15e6549a6b96b3f77b"
+      "verdict_hash": "e90c97fff0fc1462957c2b07fd09131e660e577bdc4fb8eaafedd5ba31ed3455"
     },
     {
       "authorized_total_quantity": "0",
@@ -333,7 +333,7 @@
         "HARD_REJECTION_UPHELD"
       ],
       "decision_verdict": "REJECT",
-      "evaluation_id": "a2375c0754cd1bd2e7c1d0214a2d36ab308083665adaf9c2f9d67fd97fa1b7bd",
+      "evaluation_id": "e307e9827a7456e04bf6bb5f3ed5d75b0cbb75557de21f5eb3edab3f75e57684",
       "evaluation_reason_codes": [
         "AGGREGATE_EXPOSURE_EXCEEDED"
       ],
@@ -341,7 +341,7 @@
       "evaluation_verdict": "REJECT",
       "policy_hash": "5a209f4a478f6a06e50676c35228564101646b93226fc35ed04405908e319b09",
       "scenario": "reject_by_aggregate",
-      "verdict_hash": "2ffdf0a417f85bf706a5854d43844dd3760e85ff8cf1f8fbfbc212488063dd1a"
+      "verdict_hash": "5bf083ffb49d42d48f2cfc154167c682bf7c5af91d551e1696b71bc19995ba92"
     },
     {
       "authorized_total_quantity": "5",
@@ -443,13 +443,13 @@
       ],
       "decision_reason_codes": [],
       "decision_verdict": "APPROVE",
-      "evaluation_id": "c1e796cefa85a6113e3b7f7e6fa03a483f1cfee7c781860c27f6d426e059d23a",
+      "evaluation_id": "31b17412548f97b28e1df5b05ac0651a887eccc1e44bd93c743b4e4c6791adb0",
       "evaluation_reason_codes": [],
       "evaluation_recommended_quantity": "5",
       "evaluation_verdict": "PASS",
       "policy_hash": "5a209f4a478f6a06e50676c35228564101646b93226fc35ed04405908e319b09",
       "scenario": "option_multi_leg",
-      "verdict_hash": "7d52e3c96b13126a40da6415da8e0cb6b06af725b40304ea4da48bfa57ad6dbf"
+      "verdict_hash": "e50bfcf165d84fc16622b2416c23fd6a1410dc7e63a03177cd897bbdf98d8f24"
     },
     {
       "authorized_total_quantity": "10",
@@ -551,13 +551,121 @@
       ],
       "decision_reason_codes": [],
       "decision_verdict": "APPROVE",
-      "evaluation_id": "4051770295f29bfdad16d3c4c8122f51c4daf4ada14e4434951ec93cacc41ac8",
+      "evaluation_id": "ba66bfaafab9de0cc4b6faf3badfe3b2868968be4579e6bf7ada88ce71f3d270",
       "evaluation_reason_codes": [],
       "evaluation_recommended_quantity": "10",
       "evaluation_verdict": "PASS",
       "policy_hash": "5a209f4a478f6a06e50676c35228564101646b93226fc35ed04405908e319b09",
       "scenario": "injected_free_text",
-      "verdict_hash": "4be899ca52c0b8834fb1c153b1a62e1f41ae407eb09c4c9a3043123e0031baf6"
+      "verdict_hash": "4204cb7a7bdd39550bb292547333b50cd20ef8c0332dd3f07cd3b265aaf0b233"
+    },
+    {
+      "authorized_total_quantity": "10",
+      "check_ids_in_order": [
+        "market_data_presence",
+        "portfolio_state_presence",
+        "proposal_expiry",
+        "restricted_symbol",
+        "restricted_strategy",
+        "leg_limit",
+        "position_limit",
+        "capital_threshold",
+        "buying_power_sufficiency",
+        "buying_power_utilization",
+        "concentration_limit",
+        "sector_concentration",
+        "drawdown_limit",
+        "duplicate_order",
+        "erroneous_order",
+        "days_to_expiry",
+        "options_delta_limit",
+        "options_gamma_limit",
+        "options_vega_limit",
+        "response_level_gate",
+        "agent_budget",
+        "invalidation_defined",
+        "reward_risk",
+        "risk_per_trade",
+        "drawdown_size_scaling",
+        "consecutive_loss_review",
+        "aggregate_exposure",
+        "correlated_intent",
+        "model_provider_concentration",
+        "signal_source_concentration",
+        "crowding",
+        "liquidity_adv",
+        "option_liquidity",
+        "time_blackout",
+        "session_window",
+        "options_short_gamma_limit",
+        "options_short_vega_limit",
+        "assignment_risk",
+        "pin_risk",
+        "stress_scenarios",
+        "absorbing_barrier",
+        "factor_exposure",
+        "book_liquidation_time",
+        "account_capability",
+        "structure_valid",
+        "expected_value"
+      ],
+      "check_passed_in_order": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "decision_reason_codes": [],
+      "decision_verdict": "APPROVE",
+      "evaluation_id": "313c3c08b87e4beb5cd6d66fffb98bbff638ae82126873c0840e31710cd31dd4",
+      "evaluation_reason_codes": [],
+      "evaluation_recommended_quantity": "10",
+      "evaluation_verdict": "PASS",
+      "policy_hash": "5a209f4a478f6a06e50676c35228564101646b93226fc35ed04405908e319b09",
+      "scenario": "opening_short",
+      "verdict_hash": "ba6aeb16a077750b7b4fa6d41ccafa3cad264983f887ac63fd1fda08e6bd5af7"
     }
   ],
   "schema": "mizan.determinism-fingerprint/1"

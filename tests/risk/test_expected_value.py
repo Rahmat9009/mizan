@@ -141,7 +141,13 @@ def market(
             "iv": iv,
         }
     return make_market_snapshot(
-        quotes=quotes, option_quotes=option_quotes, sectors={}, source="test:market"
+        quotes=quotes,
+        option_quotes=option_quotes,
+        # A sector, because sector_concentration now actually RUNS on a spread. It used to switch
+        # itself off on anything containing a short leg (F-30), so an empty map went unnoticed here;
+        # with the check live, an absent sector correctly blocks and the fixture has to supply one.
+        sectors={symbol: "Index ETF"},
+        source="test:market",
     )
 
 

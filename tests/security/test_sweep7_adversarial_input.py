@@ -577,25 +577,25 @@ SHORT_BLIND_CHECKS = (
 )
 
 
-def test_f30_the_exposure_change_of_an_opening_short_is_negative() -> None:
-    """The mechanism, pinned: ``signed_quantity`` is the only thing that decides the sign."""
+def test_f30_an_opening_short_still_has_a_negative_cash_change_but_does_increase_risk() -> None:
+    """The mechanism, pinned: ``change`` is a CASH FLOW and never was a measure of capital.
+
+    Selling to open receives premium, so ``change`` is negative and stays negative - that part was
+    never wrong. What was wrong was reading the sign of cash as an answer to "does this consume
+    capital", which switched four checks off on the riskiest shape a proposal has. ``opening``
+    measures the position the order puts on, so the short is now risk-increasing while its cash flow
+    is still, correctly, negative.
+    """
     short = decide(build(asset_class="equity_option", strategy="custom", legs=[dict(NAKED_SHORT_CALL)]))
     long_ = decide(build(asset_class="equity_option", strategy="custom", legs=[dict(CALL_LEG)]))
-    assert short["exposure"].change < 0
-    assert short["exposure"].increases_risk is False
+    assert short["exposure"].change < 0, "a short receives premium; this was always right"
+    assert short["exposure"].opening > 0, "and it puts on a position, which is what costs capital"
+    assert short["exposure"].increases_risk is True
     assert long_["exposure"].increases_risk is True
     # The gross of both is the PREMIUM, not the underlying the short is on the hook for.
     assert short["exposure"].gross == long_["exposure"].gross
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="F-30 OPEN (HIGH, L1 risk): exposure_of().change is negative for any sell leg, so an "
-    "OPENING short with no offsetting position reports 'the order does not consume buying "
-    "power' / 'does not increase symbol exposure' and buying_power_sufficiency, "
-    "buying_power_utilization, concentration_limit and sector_concentration all self-disable. "
-    "Remove this marker when F-30 is fixed.",
-)
 def test_f30_an_opening_short_must_still_be_measured_by_the_capital_checks() -> None:
     short = decide(build(asset_class="equity_option", strategy="custom", legs=[dict(NAKED_SHORT_CALL)]))
     proposal_intent = "open"
