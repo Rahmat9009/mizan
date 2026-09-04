@@ -240,14 +240,22 @@ def test_f29_bound_state_carries_no_market_state_hash() -> None:
     )
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="F-29 OPEN (MEDIUM, L3 execution + L0 contracts): BoundState has no market_state_hash, "
-    "so ExecutionGate._state_changed compares the market snapshot by id alone. An order is "
-    "submitted with revalidation.state_changed=False while the quotes it was authorized "
-    "against have changed. Remove this marker when F-29 is fixed.",
-)
-def test_f29_a_market_that_moved_under_a_reused_snapshot_id_must_report_state_changed() -> None:
+def test_f29_a_moved_market_cannot_reuse_its_snapshot_id() -> None:
+    """F-29 is closed, and not by a change to the gate: the attack stopped being REPRESENTABLE.
+
+    The finding was that ``ExecutionGate._state_changed`` compares market snapshots by id, so quotes
+    that moved under a REUSED id would be submitted against with ``state_changed=False`` - an order
+    placed on prices the authorization was never bound to, and a record saying otherwise.
+
+    REQ-34 then made ``snapshot_id`` a hash of the snapshot's own content. A payload carrying moved
+    quotes under its old id no longer validates, so the state the finding describes cannot be built,
+    passed to a broker, or recorded. Comparing by id IS comparing by content once the id is derived
+    from the content.
+
+    Which is exactly why this is pinned here. The gate's correctness now RESTS on that derivation,
+    silently - make ``snapshot_id`` an opaque string again, for any reasonable-sounding reason, and
+    ``_state_changed`` goes back to being unsound with nothing to say so.
+    """
     chain = a_chain()
     original = chain["context"].market_snapshot
     payload = original.model_dump(mode="json")
@@ -255,17 +263,29 @@ def test_f29_a_market_that_moved_under_a_reused_snapshot_id_must_report_state_ch
     quote["price"] = "230.0"
     quote["bid"] = "229.9"
     quote["ask"] = "230.1"
-    moved = MarketSnapshot.model_validate(payload)
-    assert moved.snapshot_id == original.snapshot_id, "the attack is a REUSED id, not a new one"
-    assert object_hash(moved) != object_hash(original)
-    chain["broker"].set_market_snapshot(moved)
 
-    result = a_gate(chain).execute(chain["auth"], chain["proposal"], chain["decision"])
-    assert result.status == "SUBMITTED"
-    assert result.revalidation.state_changed is True, (
-        "the order was submitted and the record says the bound state did not change, while the "
-        "quotes the authorization was bound to did"
-    )
+    with pytest.raises(ValidationError, match="snapshot_id"):
+        MarketSnapshot.model_validate(payload)
+
+
+def test_f29_every_quote_change_moves_the_snapshot_id() -> None:
+    """The property the gate depends on, stated directly: content in, identity out.
+
+    If any field a decision was priced against could change without moving the id, an authorization
+    could be revalidated against different numbers and report that nothing had changed.
+    """
+    chain = a_chain()
+    original = chain["context"].market_snapshot
+    symbol = chain["proposal"].symbol
+    seen = {original.snapshot_id}
+
+    for field, value in (("price", "230.0"), ("bid", "229.9"), ("ask", "230.1")):
+        payload = original.model_dump(mode="json")
+        payload["quotes"][symbol][field] = value
+        payload.pop("snapshot_id")
+        rebuilt = MarketSnapshot.build(**payload)
+        assert rebuilt.snapshot_id not in seen, f"changing {field} left the snapshot id unmoved"
+        seen.add(rebuilt.snapshot_id)
 
 
 def test_f29_the_price_move_is_still_re_evaluated_even_though_it_is_not_reported() -> None:

@@ -156,6 +156,7 @@ def _clamped(opinion: AdvisoryOpinion, cap: Decimal, profile: str) -> AdvisoryOp
 
     recommendation = opinion.recommendation
     quantity: str | None = None
+    reasoning = _text(opinion.reasoning)
     if recommendation == "REDUCE":
         raw = opinion.recommended_quantity
         if raw is None:
@@ -164,6 +165,19 @@ def _clamped(opinion: AdvisoryOpinion, cap: Decimal, profile: str) -> AdvisoryOp
             )
         parsed = dec(raw)
         if parsed > cap:
+            # The clamp is right and stays: an advisory can only ever reduce (E1). What was wrong is
+            # that it happened SILENTLY - the opinion left here carrying exactly the cap, which is
+            # indistinguishable in the record from a provider that simply concurred. A model quietly
+            # asking for 99999 against a cap of 10 is the single most useful thing this layer could
+            # tell an operator, and it was the one thing the record could not say (F-32).
+            #
+            # Recorded, never enforced: nothing downstream reads this text, and INV-17 walks the AST
+            # of the enforcement path to keep it that way. The clamped number remains the only input
+            # to any decision.
+            reasoning = _text(
+                f"ADVISORY_CLAMPED: provider asked for {_bounded(str(raw))} against a deterministic "
+                f"cap of {dstr(cap)}; clamped to the cap. {reasoning}"
+            )
             parsed = cap
         if parsed <= _ZERO:
             recommendation = "REJECT"  # a reduction to nothing is a rejection, and stays downward
@@ -176,7 +190,7 @@ def _clamped(opinion: AdvisoryOpinion, cap: Decimal, profile: str) -> AdvisoryOp
         available=True,
         recommendation=recommendation,
         recommended_quantity=quantity,
-        reasoning=_text(opinion.reasoning),
+        reasoning=reasoning,
         authority_ceiling="reduce_or_reject",
         provider_ref=_bounded(opinion.provider_ref),
         raw_hash=opinion.raw_hash,

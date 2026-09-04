@@ -358,13 +358,6 @@ def test_f32_the_governor_alone_still_flags_an_upsize_attempt() -> None:
     assert ReasonCode.ADVISORY_CLAMPED in outcome["decision"].reason_codes
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="F-32 OPEN (MEDIUM, L2a): get_advisory clamps a REDUCE above the cap down to the cap "
-    "before the governor sees it, so ADVISORY_CLAMPED can never fire on the real pipeline and "
-    "the record cannot distinguish an advisory that tried to upsize from one that concurred. "
-    "Remove this marker when F-32 is fixed.",
-)
 def test_f32_an_upsize_attempt_must_be_visible_in_the_decision_record() -> None:
     proposal = build()
     baseline = decide(proposal)
@@ -380,6 +373,52 @@ def test_f32_an_upsize_attempt_must_be_visible_in_the_decision_record() -> None:
     assert ReasonCode.ADVISORY_CLAMPED in outcome["decision"].reason_codes or "99999" in document, (
         "the advisory asked for 99999 against a cap of "
         f"{baseline['evaluation'].recommended_quantity} and the record shows no trace of it"
+    )
+    assert "ADVISORY_CLAMPED" in document, "the trace should be findable by name, not only by number"
+
+
+def test_f32_the_clamped_quantity_is_still_the_only_thing_that_decides_anything() -> None:
+    """The trace is RECORDED, not enforced - the fix must not have handed the provider any authority.
+
+    An advisory can only ever reduce (E1). Making its over-ask visible had to add information to the
+    record without adding any to the decision, so the authorized size here must be the deterministic
+    cap and not one unit of the 99999 the provider asked for.
+    """
+    proposal = build()
+    baseline = decide(proposal)
+    cap = baseline["evaluation"].recommended_quantity
+    opinion = advisory_module.get_advisory(
+        ScriptedProvider(opinion_payload(recommendation="REDUCE", recommended_quantity="99999")),
+        proposal, baseline["evaluation"], baseline["context"], baseline["policy"],
+    )
+
+    assert opinion.recommended_quantity == cap, "the clamp itself must be unchanged"
+
+    outcome = decide(proposal, policy=baseline["policy"], advisory=opinion)
+    assert dec(outcome["decision"].authorized.total_quantity) <= dec(cap)
+
+
+def test_f32_the_reason_code_still_cannot_fire_and_that_is_stated_not_hidden() -> None:
+    """The half of F-32 that is NOT closed, pinned so it stays visible.
+
+    ``get_advisory`` clamps before the governor ever sees the opinion, so the governor compares a
+    quantity that already equals the cap and ``ADVISORY_CLAMPED`` cannot be raised on the real
+    pipeline. Firing it properly means carrying the pre-clamp quantity in a structured field on
+    ``AdvisoryOpinion`` - a contract change, and a better fix than the recorded text above.
+
+    Until then the over-ask is greppable but not machine-readable as a reason code, and this test
+    exists so that stays a known gap rather than a surprise.
+    """
+    proposal = build()
+    baseline = decide(proposal)
+    opinion = advisory_module.get_advisory(
+        ScriptedProvider(opinion_payload(recommendation="REDUCE", recommended_quantity="99999")),
+        proposal, baseline["evaluation"], baseline["context"], baseline["policy"],
+    )
+    outcome = decide(proposal, policy=baseline["policy"], advisory=opinion)
+
+    assert ReasonCode.ADVISORY_CLAMPED not in outcome["decision"].reason_codes, (
+        "if this now fires, F-32 is fully closed - delete this test and update security/findings.md"
     )
 
 
